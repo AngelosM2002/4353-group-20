@@ -1,0 +1,179 @@
+/* ========================================
+   QueueSmart — Authentication Styles
+   ======================================== */
+
+/* ---------- Auth Layout ---------- */
+.auth-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--gray-100);
+    padding: var(--space-4);
+}
+
+/* ---------- Auth Card ---------- */
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--gray-200);
+    padding: var(--space-8);
+}
+
+/* ---------- Auth Header ---------- */
+.auth-header {
+    text-align: center;
+    margin-bottom: var(--space-6);
+}
+
+
+
+.auth-header h1 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+/* ---------- Password Toggle ---------- */
+.password-wrapper {
+    position: relative;
+}
+
+.password-wrapper .form-input {
+    padding-right: 40px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--gray-400);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.password-toggle:hover {
+    color: var(--gray-600);
+}
+
+.password-toggle svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* ---------- Auth Footer ---------- */
+.auth-footer {
+    text-align: center;
+    margin-top: var(--space-6);
+    font-size: var(--font-size-sm);
+    color: var(--gray-500);
+}
+
+.auth-footer a {
+    color: var(--gray-900);
+    font-weight: 500;
+}
+
+/* ---------- Role Selector ---------- */
+.role-selector {
+    display: flex;
+    gap: var(--space-3);
+}
+
+.role-option {
+    flex: 1;
+    position: relative;
+}
+
+.role-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.role-option label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+    text-align: center;
+}
+
+.role-option label:hover {
+    border-color: var(--gray-900);
+}
+
+.role-option input[type="radio"]:checked+label {
+    border-color: var(--gray-900);
+    background: var(--gray-50);
+}
+
+.role-option .role-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.role-option .role-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.role-option .role-name {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+/* ---------- Success Message ---------- */
+.auth-success {
+    display: none;
+    text-align: center;
+    padding: var(--space-6) var(--space-4);
+}
+
+.auth-success.visible {
+    display: block;
+}
+
+.auth-success .success-icon {
+    width: 56px;
+    height: 56px;
+    background: var(--success-light);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--space-4);
+}
+
+.auth-success .success-icon svg {
+    width: 28px;
+    height: 28px;
+    stroke: var(--success);
+}
+
+.auth-success h2 {
+    margin-bottom: var(--space-2);
+}
+
+.auth-success p {
+    color: var(--gray-500);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-6);
+}

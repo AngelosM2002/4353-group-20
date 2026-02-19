@@ -12,7 +12,7 @@ A web application that helps organizations manage queues and appointments effici
 
 2. Open the application:
    - Open `index.html` in your browser, or
-   - Use a local server (recommended):
+   - Use the commands:
      ```bash
      # Using Python
      python -m http.server 8000
@@ -22,5 +22,3 @@ A web application that helps organizations manage queues and appointments effici
      ```
 
 3. Navigate to `http://localhost:8000` in your browser.
-
-> **Note:** No build step or dependencies required — this project uses vanilla HTML, CSS, and JavaScript.

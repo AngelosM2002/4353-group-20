@@ -104,10 +104,13 @@ function initLoginForm(form) {
             localStorage.setItem('qs_currentUser', JSON.stringify(mockUser));
 
             // Redirect based on role
-            if (mockUser.role === 'admin') {
-                window.location.href = 'admin-dashboard.html';
-            } else {
-                window.location.href = 'user-dashboard.html';
+            if (mockUser.role === 'admin')
+            {
+                window.location.href = '/pages/admin/admin-dashboard.html?v=1';
+            }
+            else
+            {
+                window.location.href = '/pages/user/user-dashboard.html?v=1';
             }
         }
     });

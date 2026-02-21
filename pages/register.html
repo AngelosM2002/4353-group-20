@@ -11,31 +11,36 @@
 </head>
 
 <body>
+
+    <!-- Notifications (required) -->
+    <div id="notifications"></div>
+
     <div class="auth-wrapper">
         <div class="auth-card">
+
             <!-- Header -->
             <div class="auth-header">
-
                 <h1>Create Account</h1>
             </div>
 
             <!-- Registration Form -->
             <form id="registerForm" class="auth-form" novalidate>
-                <div class="form-group">
+
+                <div class="form-field">
                     <label for="fullName" class="form-label">Full Name</label>
-                    <input type="text" id="fullName" name="fullName" class="form-input" placeholder="John Doe" required
-                        maxlength="100" autocomplete="name">
-                    <p class="form-error" id="fullNameError"></p>
+                    <input type="text" id="fullName" name="fullName" class="form-input" placeholder="John Doe"
+                        required maxlength="100" autocomplete="name">
+                    <div class="form-error"></div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-field">
                     <label for="email" class="form-label">Email address</label>
                     <input type="email" id="email" name="email" class="form-input" placeholder="you@example.com"
                         required autocomplete="email">
-                    <p class="form-error" id="emailError"></p>
+                    <div class="form-error"></div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-field">
                     <label for="password" class="form-label">Password</label>
                     <div class="password-wrapper">
                         <input type="password" id="password" name="password" class="form-input"
@@ -49,10 +54,10 @@
                             </svg>
                         </button>
                     </div>
-                    <p class="form-error" id="passwordError"></p>
+                    <div class="form-error"></div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-field">
                     <label for="confirmPassword" class="form-label">Confirm Password</label>
                     <div class="password-wrapper">
                         <input type="password" id="confirmPassword" name="confirmPassword" class="form-input"
@@ -61,16 +66,16 @@
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                                 class="eye-icon">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
                         </button>
                     </div>
-                    <p class="form-error" id="confirmPasswordError"></p>
+                    <div class="form-error"></div>
                 </div>
 
                 <!-- Role Selector -->
-                <div class="form-group">
+                <div class="form-field">
                     <label class="form-label">Account type</label>
                     <div class="role-selector">
                         <div class="role-option">
@@ -87,6 +92,7 @@
                                 <span class="role-name">User</span>
                             </label>
                         </div>
+
                         <div class="role-option">
                             <input type="radio" id="roleAdmin" name="role" value="admin">
                             <label for="roleAdmin">
@@ -101,6 +107,7 @@
                             </label>
                         </div>
                     </div>
+                    <div class="form-error"></div>
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-lg btn-block" id="registerBtn">
@@ -125,10 +132,19 @@
             <div class="auth-footer" id="registerFooter">
                 <p>Already have an account? <a href="login.html">Sign in</a></p>
             </div>
+
         </div>
     </div>
 
+    <!-- Existing logic (toggle password, etc.) -->
     <script src="../js/auth.js"></script>
+
+    <!-- Validation + Notifications -->
+    <script type="module">
+        import { setupRegisterValidation } from "../js/registerValidate.js";
+        setupRegisterValidation();
+    </script>
+
 </body>
 
 </html>

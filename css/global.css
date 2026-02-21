@@ -273,3 +273,36 @@ h3 {
     clip: rect(0, 0, 0, 0);
     border: 0;
 }
+
+/* =========================
+   In-app Notifications (Toast)
+   ========================= */
+#notifications {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  gap: 10px;
+  z-index: 9999;
+}
+
+.notice {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #fff;
+  background: #111827;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+  max-width: 320px;
+  line-height: 1.35;
+}
+
+.notice-info { background: #111827; }
+.notice-success { background: #065f46; }
+.notice-warning { background: #92400e; }
+.notice-error { background: #991b1b; }
+
+.notice.fade {
+  opacity: 0;
+  transition: opacity 250ms ease;
+}

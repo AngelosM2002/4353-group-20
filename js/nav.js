@@ -40,8 +40,8 @@ function renderNav(container) {
         { href: 'join-queue.html', icon: iconJoinQueue(), label: 'Join Queue' },
         { href: 'queue-status.html', icon: iconQueueStatus(), label: 'Queue Status' },
         { href: 'history.html', icon: iconHistory(), label: 'History' },
+        { href: 'notifications.html', icon: iconNotifications(), label: 'Notifications' },
     ];
-
     const adminLinks = [
         { href: 'admin-dashboard.html', icon: iconDashboard(), label: 'Dashboard' },
         { href: 'services.html', icon: iconServices(), label: 'Services' },

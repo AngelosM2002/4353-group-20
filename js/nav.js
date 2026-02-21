@@ -73,13 +73,7 @@ function renderNav(container) {
                     `).join('')}
                 </div>
 
-                <div class="nav-section">
-                    <p class="nav-section-title">Notifications</p>
-                    <a href="notifications.html" class="nav-link ${currentPage === 'notifications.html' ? 'active' : ''}" id="nav-notifications">
-                        ${iconNotifications()}
-                        <span>Notifications</span>
-                    </a>
-                </div>
+
             </nav>
 
             <div class="sidebar-footer">

@@ -6,74 +6,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login — QueueSmart</title>
     <meta name="description" content="Sign in to QueueSmart to manage your queues and appointments.">
-
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="../css/auth.css">
 </head>
 
 <body>
-
-    <!-- Notifications (required) -->
-    <div id="notifications"></div>
-
     <div class="auth-wrapper">
         <div class="auth-card">
-
             <!-- Header -->
             <div class="auth-header">
+
                 <h1>Sign In</h1>
             </div>
 
             <!-- Form -->
             <form id="loginForm" class="auth-form" novalidate>
-
-                <div class="form-field">
+                <div class="form-group">
                     <label for="email" class="form-label">Email address</label>
-                    <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        class="form-input"
-                        placeholder="you@example.com"
-                        required
-                        autocomplete="email"
-                    >
-                    <div class="form-error"></div>
+                    <input type="email" id="email" name="email" class="form-input" placeholder="you@example.com"
+                        required autocomplete="email">
+                    <p class="form-error" id="emailError"></p>
                 </div>
 
-                <div class="form-field">
+                <div class="form-group">
                     <label for="password" class="form-label">Password</label>
-
                     <div class="password-wrapper">
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            class="form-input"
-                            placeholder="Enter your password"
-                            required
-                            autocomplete="current-password"
-                        >
-
-                        <button
-                            type="button"
-                            class="password-toggle"
-                            aria-label="Toggle password visibility"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round"
+                        <input type="password" id="password" name="password" class="form-input"
+                            placeholder="Enter your password" required autocomplete="current-password">
+                        <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                                 class="eye-icon">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
                         </button>
                     </div>
-
-                    <div class="form-error"></div>
+                    <p class="form-error" id="passwordError"></p>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-lg btn-block">
+                <button type="submit" class="btn btn-primary btn-lg btn-block" id="loginBtn">
                     Sign In
                 </button>
             </form>
@@ -82,18 +54,10 @@
             <div class="auth-footer">
                 <p>Don't have an account? <a href="register.html">Create one</a></p>
             </div>
-
         </div>
     </div>
 
-    <!-- Existing logic (password toggle, etc.) -->
     <script src="../js/auth.js"></script>
-
-    <!-- Validation + Notifications (THIS is what you asked to add) -->
-    <script type="module">
-        import { setupLoginValidation } from "../js/loginValidate.js";
-        setupLoginValidation();
-    </script>
-
 </body>
+
 </html>

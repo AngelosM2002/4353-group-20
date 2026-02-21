@@ -26,7 +26,7 @@ function renderNav(container) {
     const user = getCurrentUser();
 
     if (!user || !user.loggedIn) {
-        window.location.href = 'login.html';
+        window.location.href = '../login.html';
         return;
     }
 
@@ -40,8 +40,8 @@ function renderNav(container) {
         { href: 'join-queue.html', icon: iconJoinQueue(), label: 'Join Queue' },
         { href: 'queue-status.html', icon: iconQueueStatus(), label: 'Queue Status' },
         { href: 'history.html', icon: iconHistory(), label: 'History' },
+        { href: 'notifications.html', icon: iconNotifications(), label: 'Notifications' },
     ];
-
     const adminLinks = [
         { href: 'admin-dashboard.html', icon: iconDashboard(), label: 'Dashboard' },
         { href: 'services.html', icon: iconServices(), label: 'Services' },
@@ -73,13 +73,7 @@ function renderNav(container) {
                     `).join('')}
                 </div>
 
-                <div class="nav-section">
-                    <p class="nav-section-title">Notifications</p>
-                    <a href="notifications.html" class="nav-link ${currentPage === 'notifications.html' ? 'active' : ''}" id="nav-notifications">
-                        ${iconNotifications()}
-                        <span>Notifications</span>
-                    </a>
-                </div>
+
             </nav>
 
             <div class="sidebar-footer">
@@ -102,7 +96,7 @@ function renderNav(container) {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('qs_currentUser');
-            window.location.href = 'login.html';
+            window.location.href = '../login.html';
         });
     }
 }

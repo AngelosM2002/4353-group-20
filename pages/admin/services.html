@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Management | QueueSmart</title>
+
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/nav.css">
+    <link rel="stylesheet" href="../../css/admin.css">
+</head>
+<body>
+    <div class="app-layout">
+
+        <!-- Sidebar loads here -->
+        <div id="nav-container"></div>
+
+        <!-- Main Content -->
+        <main class="app-main">
+            <div class="page-header" style="margin-bottom: var(--space-6);">
+                <h1>Service Management</h1>
+                <button class="btn btn-primary" id="addServiceBtn">+ Add Service</button>
+            </div>
+
+            <section class="card" id="serviceManagement">
+                <div id="servicesListContainer"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Create / Edit Service Modal -->
+    <div class="modal-overlay" id="serviceModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="serviceModalTitle">Create Service</h2>
+                <button type="button" class="modal-close" id="closeModalBtn" aria-label="Close">&times;</button>
+            </div>
+
+            <form id="serviceForm" novalidate>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="serviceName" class="form-label">Service Name</label>
+                        <input type="text" id="serviceName" class="form-input"
+                            placeholder="e.g., Driver's License Renewal" required maxlength="100">
+                        <p class="form-error" id="serviceNameError"></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="serviceDescription" class="form-label">Description</label>
+                        <textarea id="serviceDescription" class="form-input form-textarea"
+                            placeholder="Describe this service..." required></textarea>
+                        <p class="form-error" id="serviceDescriptionError"></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="serviceDuration" class="form-label">Expected Duration (minutes)</label>
+                        <input type="number" id="serviceDuration" class="form-input"
+                            placeholder="e.g., 15" required min="1" max="480">
+                        <p class="form-error" id="serviceDurationError"></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servicePriority" class="form-label">Priority Level</label>
+                        <select id="servicePriority" class="form-select" required>
+                            <option value="">Select priority</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                        <p class="form-error" id="servicePriorityError"></p>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="cancelServiceBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Service</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../../js/router.js"></script>
+    <script src="../../js/nav.js"></script>
+    <script src="../../js/admin.js"></script>
+</body>
+</html>

@@ -26,7 +26,7 @@ function renderNav(container) {
     const user = getCurrentUser();
 
     if (!user || !user.loggedIn) {
-        window.location.href = 'login.html';
+        window.location.href = '../login.html';
         return;
     }
 
@@ -102,7 +102,7 @@ function renderNav(container) {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('qs_currentUser');
-            window.location.href = 'login.html';
+            window.location.href = '../login.html';
         });
     }
 }

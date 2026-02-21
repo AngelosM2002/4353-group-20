@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard | QueueSmart</title>
+
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/nav.css">
+</head>
+<body>
+    <div class="app-layout">
+
+        <!-- Sidebar loads here -->
+        <div id="nav-container"></div>
+
+        <!-- Main Content -->
+        <main class="app-main">
+            <h1 style="margin-bottom: var(--space-6);">User Dashboard</h1>
+
+            <!-- Current Queue Status -->
+            <section class="card" style="margin-bottom: var(--space-6);">
+                <h2 style="margin-bottom: var(--space-4);">Current Queue Status</h2>
+
+                <p><strong>Service:</strong> Driver’s License Renewal</p>
+                <p><strong>Your Position:</strong> #5</p>
+                <p><strong>Estimated Wait Time:</strong> 18 minutes</p>
+                <span class="badge badge-warning" style="margin-top: var(--space-3); display: inline-block;">
+                    Waiting
+                </span>
+            </section>
+
+            <!-- Active Services -->
+            <section class="card" style="margin-bottom: var(--space-6);">
+                <h2 style="margin-bottom: var(--space-4);">Active Services Available</h2>
+
+                <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+                    <div style="padding: var(--space-4); border: 1px solid var(--gray-200); border-radius: var(--radius-md);">
+                        <h3>Driver’s License Renewal</h3>
+                        <p>Estimated Duration: 20 minutes</p>
+                        <span class="badge badge-success">Open</span>
+                    </div>
+
+                    <div style="padding: var(--space-4); border: 1px solid var(--gray-200); border-radius: var(--radius-md);">
+                        <h3>Vehicle Registration</h3>
+                        <p>Estimated Duration: 15 minutes</p>
+                        <span class="badge badge-success">Open</span>
+                    </div>
+
+                    <div style="padding: var(--space-4); border: 1px solid var(--gray-200); border-radius: var(--radius-md);">
+                        <h3>ID Card Replacement</h3>
+                        <p>Estimated Duration: 10 minutes</p>
+                        <span class="badge badge-error">Closed</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notifications Summary -->
+            <section class="card">
+                <h2 style="margin-bottom: var(--space-4);">Notifications Summary</h2>
+
+                <ul style="list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: var(--space-3);">
+                    <li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">
+                        Your queue position has moved from #7 to #5.
+                    </li>
+
+                    <li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">
+                        Vehicle Registration queue is currently shorter than usual.
+                    </li>
+
+                    <li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">
+                        Reminder: Please be present when your number is called.
+                    </li>
+                </ul>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="../../js/router.js"></script>
+    <script src="../../js/nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usage Statistics | QueueSmart</title>
+
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/nav.css">
+</head>
+<body>
+    <div class="app-layout">
+
+        <div id="nav-container"></div>
+
+        <main class="app-main">
+            <h1 style="margin-bottom: var(--space-6);">Usage Statistics</h1>
+
+            <section class="card" style="margin-bottom: var(--space-6);">
+                <h2 style="margin-bottom: var(--space-4);">Recent Queue Activity</h2>
+
+                <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--space-4);">
+                    <li style="padding: var(--space-4); border: 1px solid var(--gray-200); border-radius: var(--radius-md);">
+                        <strong>Driver's License Renewal</strong><br>
+                        Date: Feb 20, 2026<br>
+                        Users Served: 12 &bull; Avg Wait: 18 min<br>
+                        <span class="badge badge-success" style="margin-top: var(--space-2); display: inline-block;">Completed</span>
+                    </li>
+
+                    <li style="padding: var(--space-4); border: 1px solid var(--gray-200); border-radius: var(--radius-md);">
+                        <strong>Vehicle Registration</strong><br>
+                        Date: Feb 20, 2026<br>
+                        Users Served: 8 &bull; Avg Wait: 14 min<br>
+                        <span class="badge badge-success" style="margin-top: var(--space-2); display: inline-block;">Completed</span>
+                    </li>
+
+                    <li style="padding: var(--space-4); border: 1px solid var(--gray-200); border-radius: var(--radius-md);">
+                        <strong>Title Transfer</strong><br>
+                        Date: Feb 19, 2026<br>
+                        Users Served: 5 &bull; Avg Wait: 22 min<br>
+                        <span class="badge badge-success" style="margin-top: var(--space-2); display: inline-block;">Completed</span>
+                    </li>
+
+                    <li style="padding: var(--space-4); border: 1px solid var(--gray-200); border-radius: var(--radius-md);">
+                        <strong>ID Card Replacement</strong><br>
+                        Date: Feb 18, 2026<br>
+                        Users Served: 0 &bull; Avg Wait: —<br>
+                        <span class="badge badge-error" style="margin-top: var(--space-2); display: inline-block;">Queue Closed</span>
+                    </li>
+                </ul>
+            </section>
+
+            <section class="card">
+                <h2 style="margin-bottom: var(--space-4);">Summary</h2>
+
+                <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--space-3);">
+                    <li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">
+                        <strong>Total Users Served (This Week):</strong> 25
+                    </li>
+                    <li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">
+                        <strong>Average Wait Time:</strong> 17 minutes
+                    </li>
+                    <li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">
+                        <strong>Most Active Service:</strong> Driver's License Renewal
+                    </li>
+                </ul>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="../../js/router.js"></script>
+    <script src="../../js/nav.js"></script>
+</body>
+</html>

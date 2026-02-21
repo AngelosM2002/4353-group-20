@@ -1,0 +1,269 @@
+/* ========================================
+   QueueSmart — Admin Page Styles
+   ======================================== */
+
+/* ---------- Page Header ---------- */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+/* ---------- Stats Grid ---------- */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-4);
+}
+
+.stat-card {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+}
+
+.stat-value {
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: var(--space-1);
+}
+
+.stat-label {
+    font-size: var(--font-size-sm);
+    color: var(--gray-500);
+}
+
+/* ---------- Data Table ---------- */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table thead th {
+    text-align: left;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+    font-weight: 600;
+    padding: var(--space-3);
+    border-bottom: 2px solid var(--gray-200);
+    white-space: nowrap;
+}
+
+.data-table tbody td {
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--gray-100);
+    font-size: var(--font-size-sm);
+    color: var(--gray-700);
+    vertical-align: middle;
+}
+
+.data-table tbody tr:hover {
+    background: var(--gray-50);
+}
+
+.data-table .desc-cell {
+    max-width: 250px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: var(--space-4);
+}
+
+.modal-overlay.visible {
+    display: flex;
+}
+
+.modal {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-md);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-6) var(--space-6) 0;
+}
+
+.modal-header h2 {
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: var(--font-size-xl);
+    color: var(--gray-400);
+    cursor: pointer;
+    padding: var(--space-1);
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--gray-700);
+}
+
+.modal-body {
+    padding: var(--space-6);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    padding: 0 var(--space-6) var(--space-6);
+}
+
+/* ---------- Textarea ---------- */
+.form-textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: var(--font-family);
+}
+
+/* ---------- Select Error State ---------- */
+.form-select.error {
+    border-color: var(--error);
+}
+
+/* ---------- Button Variants ---------- */
+.btn-sm {
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+}
+
+.btn-outline {
+    background: #fff;
+    color: var(--gray-700);
+    border: 1px solid var(--gray-300);
+}
+
+.btn-outline:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-400);
+}
+
+.btn-outline:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-danger {
+    background: var(--error);
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #b91c1c;
+}
+
+.btn-success {
+    background: var(--success);
+    color: #fff;
+}
+
+.btn-success:hover {
+    background: #15803d;
+}
+
+.btn-icon {
+    padding: var(--space-1) var(--space-2);
+    min-width: 28px;
+}
+
+/* ---------- Queue Position ---------- */
+.queue-position {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--gray-100);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+/* ---------- Empty State ---------- */
+.empty-state {
+    text-align: center;
+    padding: var(--space-8) var(--space-4);
+    color: var(--gray-400);
+    font-size: var(--font-size-sm);
+}
+
+/* ---------- Toast Notifications ---------- */
+.toast-container {
+    position: fixed;
+    top: var(--space-4);
+    right: var(--space-4);
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    pointer-events: none;
+}
+
+.toast {
+    padding: var(--space-3) var(--space-5);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    box-shadow: var(--shadow-md);
+    pointer-events: auto;
+    animation: toastSlideIn 0.3s ease;
+}
+
+.toast-exit {
+    animation: toastSlideOut 0.3s ease forwards;
+}
+
+.toast-success {
+    background: var(--success-light);
+    color: #166534;
+    border: 1px solid var(--success);
+}
+
+.toast-error {
+    background: var(--error-light);
+    color: #991b1b;
+    border: 1px solid var(--error);
+}
+
+.toast-info {
+    background: var(--gray-100);
+    color: var(--gray-700);
+    border: 1px solid var(--gray-300);
+}
+
+@keyframes toastSlideIn {
+    from { opacity: 0; transform: translateX(100%); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastSlideOut {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(100%); }
+}

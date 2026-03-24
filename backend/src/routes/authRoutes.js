@@ -1,14 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const authController = require('../controllers/authController');
 
-// mock login route
-router.post('/login', (req, res) => {
-    res.json({ message: 'login endpoint reached' });
-});
-
-// mock register route
-router.post('/register', (req, res) => {
-    res.json({ message: 'registration endpoint reached' });
-});
+// map routes to controller functions
+router.post('/register', authController.register);
+router.post('/login', authController.login);
 
 module.exports = router;

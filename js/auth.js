@@ -158,7 +158,7 @@ function initRegisterForm(form) {
     const passwordInput = document.getElementById('password');
     const confirmPasswordInput = document.getElementById('confirmPassword');
 
-    // Real-time validation on blur
+    // real-time validation on blur
     fullNameInput.addEventListener('blur', () => validateFullName(fullNameInput));
     emailInput.addEventListener('blur', () => validateRegEmail(emailInput));
     passwordInput.addEventListener('blur', () => validateRegPassword(passwordInput));
@@ -166,7 +166,7 @@ function initRegisterForm(form) {
         validateConfirmPassword(passwordInput, confirmPasswordInput)
     );
 
-    // Clear errors on focus
+    // clear errors on focus
     fullNameInput.addEventListener('focus', () => clearError(fullNameInput, 'fullNameError'));
     emailInput.addEventListener('focus', () => clearError(emailInput, 'emailError'));
     passwordInput.addEventListener('focus', () => clearError(passwordInput, 'passwordError'));
@@ -174,7 +174,8 @@ function initRegisterForm(form) {
         clearError(confirmPasswordInput, 'confirmPasswordError')
     );
 
-    form.addEventListener('submit', (e) => {
+    // use async to handle the backend fetch request
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const isNameValid = validateFullName(fullNameInput);
@@ -183,36 +184,47 @@ function initRegisterForm(form) {
         const isConfirmValid = validateConfirmPassword(passwordInput, confirmPasswordInput);
 
         if (isNameValid && isEmailValid && isPasswordValid && isConfirmValid) {
-            // Get selected role
+            // get selected role
             const role = document.querySelector('input[name="role"]:checked').value;
 
-            // Store user in localStorage
-            const storedUsers = JSON.parse(localStorage.getItem('qs_users') || '[]');
-
-            // Check if email already exists
-            if (storedUsers.find(u => u.email === emailInput.value.trim())) {
-                showError(emailInput, 'emailError', 'An account with this email already exists.');
-                return;
-            }
-
-            const newUser = {
+            // prepare user data for the backend
+            const userData = {
                 name: fullNameInput.value.trim(),
                 email: emailInput.value.trim(),
                 password: passwordInput.value,
-                role: role,
-                createdAt: new Date().toISOString()
+                role: role
             };
 
-            storedUsers.push(newUser);
-            localStorage.setItem('qs_users', JSON.stringify(storedUsers));
+            try {
+                // send data to the backend at port 3000
+                const response = await fetch('http://localhost:3000/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
 
-            // Show success message
-            form.style.display = 'none';
-            document.getElementById('registerFooter').style.display = 'none';
-            document.getElementById('registerSuccess').classList.add('visible');
+                const result = await response.json();
+
+                if (response.ok) {
+                    // show success message if backend confirms registration
+                    form.style.display = 'none';
+                    const footer = document.getElementById('registerFooter');
+                    const successMsg = document.getElementById('registerSuccess');
+                    
+                    if (footer) footer.style.display = 'none';
+                    if (successMsg) successMsg.classList.add('visible');
+                } else {
+                    // show backend error (like "user already exists")
+                    showError(emailInput, 'emailError', result.message || 'registration failed');
+                }
+            } catch (error) {
+                console.error('connection error:', error);
+                alert('could not connect to the backend. ensure your server is running on port 3000.');
+            }
         }
     });
 }
+
 
 function validateFullName(input) {
     const value = input.value.trim();

@@ -10,8 +10,17 @@ A web application that helps organizations manage queues and appointments effici
    cd 4353-group-20
    ```
 
-2. Open the application:
-   - Open `index.html` in your browser, or
+2. Backend Setup (The "Brain")
+- Open a new terminal window, navigate to the backend folder, and install the necessary dependencies:
+   ```bash
+   cd backend
+   npm install
+   npm start
+   ```
+- The server will run at http://localhost:3000.
+
+
+3. Frontend Setup 
    - Use the commands:
      ```bash
      # Using Python
@@ -21,4 +30,8 @@ A web application that helps organizations manage queues and appointments effici
      npx serve .
      ```
 
-3. Navigate to `http://localhost:8000` in your browser.
+## Tech Stack
+- **Frontend:** HTML, CSS, JavaScript
+- **Backend:** Node.js, Express.js
+- **Testing:** Jest, Supertest
+- **Data Storage:** In-memory (JavaScript Arrays)

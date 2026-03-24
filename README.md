@@ -11,6 +11,15 @@ A web application that helps organizations manage queues and appointments effici
    ```
 
 2. Backend Setup (The "Brain")
+### Navigate to the backend directory
+   ```bash
+   cd backend
+   ```
+
+### Install development dependencies
+   ```bash
+   npm install --save-dev jest supertest nodemon
+   ```
 - Open a new terminal window, navigate to the backend folder, and install the necessary dependencies:
    ```bash
    cd backend

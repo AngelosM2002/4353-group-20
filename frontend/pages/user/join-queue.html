@@ -19,26 +19,17 @@
             <section class="card">
                 <h2 style="margin-bottom: var(--space-4);">Select a Service</h2>
 
-                <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-
-                    <div class="card">
-                        <h3>Driver’s License Renewal</h3>
-                        <p>Estimated Wait Time: 18 minutes</p>
-                        <button class="btn btn-primary">Join Queue</button>
-                    </div>
-
-                    <div class="card">
-                        <h3>Vehicle Registration</h3>
-                        <p>Estimated Wait Time: 12 minutes</p>
-                        <button class="btn btn-primary">Join Queue</button>
-                    </div>
-
+                <div id="availableServicesContainer" style="display: flex; flex-direction: column; gap: var(--space-4);">
+                    <p>Loading available services...</p>
                 </div>
             </section>
         </main>
     </div>
 
+    <script src="../../js/notifications.js"></script>
     <script src="../../js/router.js"></script>
     <script src="../../js/nav.js"></script>
+    
+    <script src="../../js/user.js"></script> 
 </body>
 </html>

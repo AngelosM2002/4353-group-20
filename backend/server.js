@@ -15,12 +15,12 @@ app.get('/api/health', (req, res) => {
 // import routes from  files in src/routes folder
 const authroutes = require('./src/routes/authRoutes');
 const serviceroutes = require('./src/routes/serviceRoutes');
-// const queueroutes = require('./src/routes/queueroutes');
+const queueRoutes = require('./src/routes/queueRoutes');
 
 // link routes to endpoints
 app.use('/api/auth', authroutes);
 app.use('/api/services', serviceroutes);
-// app.use('/api/queues', queueroutes);
+app.use('/api/queues', queueRoutes);
 
 //error handling for unknown routes
 app.use((req, res) => {

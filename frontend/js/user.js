@@ -3,6 +3,7 @@
    ======================================== */
 
 const API_BASE = 'http://localhost:3000/api/services';
+const QUEUE_API = 'http://localhost:3000/api/queues';
 
 document.addEventListener('DOMContentLoaded', () => {
     // For Join Queue Page
@@ -14,8 +15,57 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('activeServicesList')) {
         renderUserDashboard();
     }
+
+    //for queue status page 
+    if (document.getElementById('queueStatusContainer')) {
+        renderUserStatus();
+    }
 });
 
+
+//show users specific position in their active queue
+async function renderUserStatus() {
+    const container = document.getElementById('queueStatusContainer');
+    const currentUser = JSON.parse(localStorage.getItem('qs_currentUser'));
+
+    if (!currentUser) {
+        container.innerHTML = '<p>Please log in to see your status.</p>';
+        return;
+    }
+
+    try {
+        //fetch the specific status for this user email
+        const response = await fetch(`${QUEUE_API}/status?email=${currentUser.email}`);
+        const status = await response.json();
+
+        if (!status.inQueue) {
+            container.innerHTML = `
+                <div class="card">
+                    <p>You are not currently in any queue.</p>
+                    <a href="join-queue.html" class="btn btn-primary" style="margin-top: 10px; display: inline-block;">Join a Queue</a>
+                </div>`;
+            return;
+        }
+
+        const waitTime = status.position * status.service.expectedDuration;
+
+        container.innerHTML = `
+            <section class="card">
+                <p><strong>Service:</strong> ${escapeHtml(status.service.name)}</p>
+                <p><strong>Your Position:</strong> #${status.position}</p>
+                <p><strong>Estimated Wait Time:</strong> ${waitTime} minutes</p>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+                    <span class="badge badge-warning">Waiting</span>
+                    <button class="btn btn-danger btn-sm" onclick="leaveQueue(${status.service.id})">Leave Queue</button>
+                </div>
+            </section>
+        `;
+    } catch (error) {
+        console.error("Status error:", error);
+        container.innerHTML = '<p>Error loading your queue status.</p>';
+    }
+}
 
 //get services from backend and display 
 async function loadAvailableServices() {
@@ -64,42 +114,29 @@ async function renderUserDashboard() {
     const currentUser = JSON.parse(localStorage.getItem('qs_currentUser'));
 
     try {
-        // fetch services from backend
-        const response = await fetch(API_BASE);
-        const services = await response.json();
+        //fetch available services
+        const sResponse = await fetch(API_BASE);
+        const services = await sResponse.json();
 
-        // handle active services slot
-        if (services.length === 0) {
-            servicesList.innerHTML = '<p>No services currently open.</p>';
-        } else {
-            servicesList.innerHTML = services.map(s => `
+        servicesList.innerHTML = services.length === 0 
+            ? '<p>No services currently open.</p>' 
+            : services.map(s => `
                 <div style="padding: var(--space-4); border: 1px solid var(--gray-200); border-radius: var(--radius-md);">
                     <h3>${escapeHtml(s.name)}</h3>
                     <p>Estimated Duration: ${s.expectedDuration} minutes</p>
                     <span class="badge badge-success">Open</span>
                 </div>
             `).join('');
-        }
 
-        // handle current status slot
-        const queues = JSON.parse(localStorage.getItem('qs_queues')) || {};
-        let userPosition = null;
-        let userService = null;
+        // fetch user status from backnd
+        const qResponse = await fetch(`${QUEUE_API}/status?email=${currentUser.email}`);
+        const status = await qResponse.json();
 
-        for (const serviceId in queues) {
-            const index = queues[serviceId].findIndex(u => u.email === currentUser.email);
-            if (index !== -1) {
-                userPosition = index + 1;
-                userService = services.find(s => s.id == serviceId);
-                break;
-            }
-        }
-
-        if (userPosition) {
+        if (status.inQueue) {
             statusContainer.innerHTML = `
-                <p><strong>Service:</strong> ${escapeHtml(userService.name)}</p>
-                <p><strong>Your Position:</strong> #${userPosition}</p>
-                <p><strong>Estimated Wait Time:</strong> ${userPosition * userService.expectedDuration} minutes</p>
+                <p><strong>Service:</strong> ${escapeHtml(status.service.name)}</p>
+                <p><strong>Your Position:</strong> #${status.position}</p>
+                <p><strong>Estimated Wait Time:</strong> ${status.position * status.service.expectedDuration} minutes</p>
                 <span class="badge badge-warning" style="margin-top: var(--space-3); display: inline-block;">Waiting</span>
             `;
         } else {
@@ -108,9 +145,77 @@ async function renderUserDashboard() {
                 <a href="join-queue.html" class="btn btn-primary btn-sm" style="margin-top: 10px; display: inline-block;">Join a Queue</a>
             `;
         }
-
     } catch (error) {
         console.error("Dashboard error:", error);
+    }
+}
+
+//add current user to specific service queue
+async function joinQueue(serviceId) {
+    const currentUser = JSON.parse(localStorage.getItem('qs_currentUser'));
+    
+    if (!currentUser) {
+        showNotification('Please log in to join a queue.', 'error');
+        return;
+    }
+
+    const payload = {
+        serviceId: serviceId,
+        userName: currentUser.name,
+        userEmail: currentUser.email
+    };
+
+    try {
+        const response = await fetch(`${QUEUE_API}/join`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showNotification('Successfully joined the queue!', 'success');
+            setTimeout(() => {
+                window.location.href = 'queue-status.html';
+            }, 1500);
+        } else {
+            showNotification(data.message || 'Failed to join queue.', 'error');
+        }
+
+    } catch (error) {
+        console.error("Join error:", error);
+        showNotification('Server error. Is the backend running?', 'error');
+    }
+}
+
+
+//remove current user from specific service queue
+async function leaveQueue(serviceId) {
+    if (!confirm('Are you sure you want to leave this queue?')) return;
+
+    const currentUser = JSON.parse(localStorage.getItem('qs_currentUser'));
+
+    try {
+        const response = await fetch(`${QUEUE_API}/leave`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                serviceId: serviceId,
+                userEmail: currentUser.email
+            })
+        });
+
+        if (response.ok) {
+            showNotification('You have left the queue.', 'info');
+            // Re-render the UI to show they are no longer in line
+            if (document.getElementById('userStatusSummary')) renderUserDashboard();
+            if (document.getElementById('queueStatusContainer')) renderUserStatus(); 
+        } else {
+            showNotification('Failed to leave queue.', 'error');
+        }
+    } catch (error) {
+        console.error("Leave error:", error);
     }
 }
 

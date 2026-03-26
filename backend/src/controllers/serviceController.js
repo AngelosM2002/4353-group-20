@@ -6,35 +6,32 @@ let serviceIdCounter = 1;
 exports.createService = (req, res) => {
     const { name, description, expectedDuration, priorityLevel } = req.body;
 
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-        return res.status(400).json({ message: 'Valid service name is required' });
+    // ensure priorityLevel is present and is a valid number
+    if (!priorityLevel || isNaN(parseInt(priorityLevel))) {
+        return res.status(400).json({ 
+            message: 'Service Priority is required and must be a number.' 
+        });
     }
-    if (!description || typeof description !== 'string') {
-        return res.status(400).json({ message: 'Valid description is required' });
-    }
-    if (typeof expectedDuration !== 'number' || expectedDuration <= 0) {
-        return res.status(400).json({ message: 'Expected duration must be a positive number (minutes)' });
-    }
-    if (typeof priorityLevel !== 'number' || priorityLevel < 0) {
-        return res.status(400).json({ message: 'Priority level must be a non-negative number' });
+
+    // validaiton for other fields
+    if (!name || !expectedDuration) {
+        return res.status(400).json({ message: 'Name and Duration are required.' });
     }
 
     const newService = {
-        id: serviceIdCounter++,
+        id: services.length + 1,
         name,
         description,
-        expectedDuration,
-        priorityLevel,
-        createdAt: new Date()
+        expectedDuration: parseInt(expectedDuration),
+        priorityLevel: parseInt(priorityLevel), // Store as integer
+        status: 'active'
     };
 
     services.push(newService);
     
-    // Initialize the queue for this service implicitly or explicitly (will be handled by queue logic when needed, but good to have)
-    
-    res.status(201).json({ message: 'Service created successfully', service: newService });
+    console.log(`[ADMIN] Created new service: ${name} (Priority: ${priorityLevel})`);
+    res.status(201).json(newService);
 };
-
 exports.getServices = (req, res) => {
     res.json(services);
 };

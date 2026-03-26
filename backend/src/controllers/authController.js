@@ -3,35 +3,46 @@ const { users } = require('../data/memoryData');
 exports.register = (req, res) => {
     const { name, email, password, role } = req.body;
 
-    // this log prints in ur backend termnal
     console.log('--- NEW REGISTRATION ATTEMPT ---');
-    console.log(`Name: ${name}`);
-    console.log(`Email: ${email}`);
-    console.log(`Role: ${role}`);
-    console.log('--------------------------------');
+    console.log(`Name: ${name} | Email: ${email} | Role: ${role}`);
 
-    if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 50) {
-        return res.status(400).json({ message: 'Name must be a string between 2 and 50 characters' });
+    // format validation 
+    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+        return res.status(400).json({ message: 'Name is required (min 2 chars)' });
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || typeof email !== 'string' || !emailRegex.test(email) || email.length > 100) {
-        return res.status(400).json({ message: 'A valid email is required (max 100 characters)' });
+    if (!email || !emailRegex.test(email)) {
+        return res.status(400).json({ message: 'A valid email is required' });
     }
 
-    if (!password || typeof password !== 'string' || password.length < 6 || password.length > 50) {
-        return res.status(400).json({ message: 'Password must be a string between 6 and 50 characters' });
+    // check uniqueness
+    const emailExists = users.some(u => u.email.toLowerCase() === email.toLowerCase());
+    if (emailExists) {
+        return res.status(400).json({ message: 'An account with this email already exists.' });
+    }
+
+    const nameExists = users.some(u => u.name.toLowerCase() === name.toLowerCase());
+    if (nameExists) {
+        return res.status(400).json({ message: 'This username/name is already taken.' });
+    }
+
+    // password validation 
+    if (!password || password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
     if (!role || (role.toLowerCase() !== 'user' && role.toLowerCase() !== 'administrator')) {
-        return res.status(400).json({ message: 'Role must be either "User" or "Administrator"' });
+        return res.status(400).json({ message: 'Role must be "User" or "Administrator"' });
     }
 
+    // save user
     const newUser = { name, email, password, role };
     users.push(newUser);
 
-    res.status(201).json({ message: 'User registered in memory', user: newUser });
+    res.status(201).json({ message: 'User registered successfully', user: newUser });
 };
+
 
 exports.login = (req, res) => {
     const { email, password } = req.body;

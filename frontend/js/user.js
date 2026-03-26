@@ -219,7 +219,7 @@ async function leaveQueue(serviceId) {
 
     try {
         const response = await fetch(`${QUEUE_API}/leave`, {
-            method: 'POST', // Ensure this matches your route!
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 serviceId: serviceId.toString(), 
@@ -230,18 +230,24 @@ async function leaveQueue(serviceId) {
         if (response.ok) {
             showNotification('Left queue successfully.', 'info');
             
-            // Redirect to dashboard and FORCE a reload to clear the cache
-            setTimeout(() => {
-                window.location.href = 'user-dashboard.html';
-            }, 800);
+            // try to redirect
+            window.location.href = 'user-dashboard.html';
+
+            // fallback; incase redirect doesnt work 
+            if (document.getElementById('queueStatusContainer')) {
+                renderUserStatus(); 
+            }
         } else {
-            const data = await response.json();
-            showNotification(data.message || 'Error leaving queue', 'error');
+            const errorData = await response.json();
+            showNotification(errorData.message || 'Error leaving queue', 'error');
         }
     } catch (error) {
         console.error("Leave error:", error);
+        // If the server call worked but the UI is stuck, just refresh
+        location.reload(); 
     }
 }
+
 
 function escapeHtml(str) {
     const div = document.createElement('div');

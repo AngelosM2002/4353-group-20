@@ -42,25 +42,25 @@ exports.joinQueue = (req, res) => {
 
 // POST /api/queues/leave
 exports.leaveQueue = (req, res) => {
-    const { serviceId, userEmail } = req.body;
+    const serviceId = req.body.serviceId.toString(); 
+    const { userEmail } = req.body;
 
     if (!queues[serviceId]) {
         return res.status(404).json({ message: 'Queue not found' });
     }
 
-    const userToLeave = queues[serviceId].find(u => u.userEmail === userEmail);
-    const userName = userToLeave ? userToLeave.userName : "Unknown User";
-
     const initialLength = queues[serviceId].length;
+    
     queues[serviceId] = queues[serviceId].filter(u => u.userEmail !== userEmail);
 
-    if (queues[serviceId].length === initialLength) {
-        return res.status(404).json({ message: 'User not found in this queue' });
+    if (queues[serviceId].length < initialLength) {
+        console.log(`[QUEUE] User ${userEmail} successfully removed from service ${serviceId}`);
+        return res.json({ message: 'Left queue successfully' });
+    } else {
+        return res.status(404).json({ message: 'User was not found in this queue' });
     }
-
-    console.log(`[QUEUE] User ${userName} has left the queue for service ID: ${serviceId}`);
-    res.json({ message: 'Left queue successfully' });
 };
+
 
 // GET /api/queues/status?email=user@example.com
 exports.getUserStatus = (req, res) => {

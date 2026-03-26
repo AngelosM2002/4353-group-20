@@ -18,14 +18,16 @@ exports.register = (req, res) => {
 
     // check uniqueness
     const emailExists = users.some(u => u.email.toLowerCase() === email.toLowerCase());
-    if (emailExists) {
-        return res.status(400).json({ message: 'An account with this email already exists.' });
+    const nameExists = users.some(u => u.name.toLowerCase() === name.toLowerCase());
+
+    if (emailExists || nameExists) {
+        // THIS IS THE TERMINAL LOG YOU WANTED
+        console.log(`[AUTH ERROR] Account cannot be created: ${email} or ${name} already exists.`);
+        
+        const message = emailExists ? 'An account with this email already exists.' : 'This username/name is already taken.';
+        return res.status(400).json({ message: message });
     }
 
-    const nameExists = users.some(u => u.name.toLowerCase() === name.toLowerCase());
-    if (nameExists) {
-        return res.status(400).json({ message: 'This username/name is already taken.' });
-    }
 
     // password validation 
     if (!password || password.length < 6) {

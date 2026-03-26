@@ -222,11 +222,19 @@ async function renderServicesList() {
 async function handleServiceSubmit(e) {
     e.preventDefault();
 
+    const priorityInput = document.getElementById('servicePriority').value;
+
+    // front end validation check 
+    if (!priorityInput || priorityInput.trim() === "") {
+        alert("Service priority is required.");
+        return; // Stop the function here so no request is sent to the backend
+    }
+
     const serviceData = {
         name: document.getElementById('serviceName').value.trim(),
         description: document.getElementById('serviceDescription').value.trim(),
         expectedDuration: Number(document.getElementById('serviceDuration').value),
-        priorityLevel: Number(document.getElementById('servicePriority').value)
+        priorityLevel: Number(priorityInput)
     };
 
     const url = editingServiceId ? `${API_BASE}/${editingServiceId}` : API_BASE;
@@ -242,12 +250,18 @@ async function handleServiceSubmit(e) {
         if (response.ok) {
             showNotification(editingServiceId ? 'Service updated!' : 'Service created!', 'success');
             closeServiceModal();
-            renderServicesList(); // Refresh list
+            renderServicesList(); 
+        } else {
+            //handle backend validation error
+            const errorData = await response.json();
+            alert(errorData.message || 'Error saving service.');
         }
     } catch (error) {
+        console.error("Save error:", error);
         showNotification('Error saving service.', 'error');
     }
 }
+
 
 /**
  * FETCH: Delete a service

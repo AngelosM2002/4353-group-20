@@ -2,9 +2,15 @@
    QueueSmart — Admin Page Logic
    ======================================== */
 
-document.addEventListener('DOMContentLoaded', () => {
-    initMockData();
+const API_BASE = 'http://localhost:3000/api/services';
+const QUEUE_API = 'http://localhost:3000/api/queues';
 
+/** Backend checks x-user-role === admin (case-insensitive). */
+function adminHeaders() {
+    return { 'x-user-role': 'admin' };
+}
+
+document.addEventListener('DOMContentLoaded', () => {
     const dashboardEl = document.getElementById('adminDashboard');
     const serviceEl = document.getElementById('serviceManagement');
     const queueEl = document.getElementById('queueManagement');
@@ -13,68 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (serviceEl) initServiceManagement();
     if (queueEl) initQueueManagement();
 });
-
-/* ---------- Mock Data ---------- */
-
-const STORAGE_SERVICES = 'qs_services';
-const STORAGE_QUEUES = 'qs_queues';
-
-const DEFAULT_SERVICES = [
-    { id: 1, name: "Driver's License Renewal", description: 'Renew an expired or expiring driver\'s license at the DMV counter.', duration: 20, priority: 'high', status: 'open' },
-    { id: 2, name: 'Vehicle Registration', description: 'Register a new vehicle or transfer existing registration to a new owner.', duration: 15, priority: 'medium', status: 'open' },
-    { id: 3, name: 'ID Card Replacement', description: 'Apply for a replacement state-issued identification card.', duration: 10, priority: 'low', status: 'closed' },
-    { id: 4, name: 'Title Transfer', description: 'Transfer a vehicle title between owners with proper documentation.', duration: 25, priority: 'medium', status: 'open' },
-];
-
-const DEFAULT_QUEUES = {
-    1: [
-        { name: 'Alice Johnson', email: 'alice@example.com', joinedAt: '2026-02-20T09:15:00' },
-        { name: 'Bob Smith', email: 'bob@example.com', joinedAt: '2026-02-20T09:22:00' },
-        { name: 'Carol Davis', email: 'carol@example.com', joinedAt: '2026-02-20T09:30:00' },
-        { name: 'David Wilson', email: 'david@example.com', joinedAt: '2026-02-20T09:45:00' },
-        { name: 'Eva Martinez', email: 'eva@example.com', joinedAt: '2026-02-20T09:52:00' },
-    ],
-    2: [
-        { name: 'Frank Brown', email: 'frank@example.com', joinedAt: '2026-02-20T10:00:00' },
-        { name: 'Grace Lee', email: 'grace@example.com', joinedAt: '2026-02-20T10:10:00' },
-        { name: 'Henry Nguyen', email: 'henry@example.com', joinedAt: '2026-02-20T10:25:00' },
-    ],
-    3: [],
-    4: [
-        { name: 'Iris Cooper', email: 'iris@example.com', joinedAt: '2026-02-20T10:30:00' },
-        { name: 'Jack Taylor', email: 'jack@example.com', joinedAt: '2026-02-20T10:45:00' },
-    ],
-};
-
-/**
- * Seeds mock data into localStorage on first visit.
- */
-function initMockData() {
-    if (!localStorage.getItem(STORAGE_SERVICES)) {
-        localStorage.setItem(STORAGE_SERVICES, JSON.stringify(DEFAULT_SERVICES));
-    }
-    if (!localStorage.getItem(STORAGE_QUEUES)) {
-        localStorage.setItem(STORAGE_QUEUES, JSON.stringify(DEFAULT_QUEUES));
-    }
-}
-
-function getServices() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_SERVICES)) || []; }
-    catch { return []; }
-}
-
-function saveServices(services) {
-    localStorage.setItem(STORAGE_SERVICES, JSON.stringify(services));
-}
-
-function getQueues() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_QUEUES)) || {}; }
-    catch { return {}; }
-}
-
-function saveQueues(queues) {
-    localStorage.setItem(STORAGE_QUEUES, JSON.stringify(queues));
-}
 
 /* ================================================
    Admin Dashboard
@@ -86,32 +30,53 @@ function initAdminDashboard() {
 
 async function renderDashboard() {
     try {
-        const response = await fetch(API_BASE); 
-        const services = await response.json(); 
-        const queues = getQueues(); 
-
+        const response = await fetch(API_BASE);
+        const services = await response.json();
         const totalServices = services.length;
-        
-        const activeQueues = services.length; 
-        const totalWaiting = Object.values(queues).reduce((sum, q) => sum + q.length, 0);
+
+        let totalWaiting = 0;
+        let activeQueueCount = 0;
+        const queueLengths = {};
+
+        await Promise.all(
+            services.map(async (s) => {
+                try {
+                    const r = await fetch(`${QUEUE_API}/admin/${s.id}`, {
+                        headers: adminHeaders()
+                    });
+                    if (!r.ok) {
+                        queueLengths[s.id] = 0;
+                        return;
+                    }
+                    const data = await r.json();
+                    const n = typeof data.count === 'number'
+                        ? data.count
+                        : (data.queue && data.queue.length) || 0;
+                    queueLengths[s.id] = n;
+                    totalWaiting += n;
+                    if (n > 0) activeQueueCount += 1;
+                } catch {
+                    queueLengths[s.id] = 0;
+                }
+            })
+        );
 
         document.getElementById('statTotalServices').textContent = totalServices;
-        document.getElementById('statActiveQueues').textContent = activeQueues;
+        document.getElementById('statActiveQueues').textContent = activeQueueCount;
         document.getElementById('statUsersWaiting').textContent = totalWaiting;
 
-
-        renderDashboardTable(services, queues); 
+        renderDashboardTable(services, queueLengths);
     } catch (error) {
-        console.error("Dashboard sync error:", error);
+        console.error('Dashboard sync error:', error);
     }
 }
 
-function renderDashboardTable(services, queues) {
+function renderDashboardTable(services, queueLengths) {
     const tableContainer = document.getElementById('dashboardServicesTable');
     if (!tableContainer) return;
 
     const rows = services.map(service => {
-        const queueLength = (queues[service.id] || []).length;
+        const queueLength = queueLengths[service.id] || 0;
         return `
             <tr>
                 <td><strong>${escapeHtml(service.name)}</strong></td>
@@ -137,28 +102,14 @@ function renderDashboardTable(services, queues) {
     `;
 }
 
-function toggleServiceStatus(serviceId) {
-    const services = getServices();
-    const service = services.find(s => s.id === serviceId);
-    if (!service) return;
-
-    service.status = service.status === 'open' ? 'closed' : 'open';
-    saveServices(services);
-    renderDashboard();
-
-    const action = service.status === 'open' ? 'opened' : 'closed';
-    showNotification(`${service.name} queue ${action}.`, service.status === 'open' ? 'success' : 'info');
-}
-
 /* ================================================
    Service Management
    =============================================== */
 
 let editingServiceId = null;
-const API_BASE = 'http://localhost:3000/api/services';
 
 function initServiceManagement() {
-    renderServicesList(); // Initial load from backend
+    renderServicesList();
 
     document.getElementById('addServiceBtn').addEventListener('click', () => openServiceModal());
     document.getElementById('closeModalBtn').addEventListener('click', closeServiceModal);
@@ -172,7 +123,7 @@ function initServiceManagement() {
  */
 async function renderServicesList() {
     const container = document.getElementById('servicesListContainer');
-    
+
     try {
         const response = await fetch(API_BASE);
         const services = await response.json();
@@ -224,10 +175,9 @@ async function handleServiceSubmit(e) {
 
     const priorityInput = document.getElementById('servicePriority').value;
 
-    // front end validation check 
-    if (!priorityInput || priorityInput.trim() === "") {
-        alert("Service priority is required.");
-        return; // Stop the function here so no request is sent to the backend
+    if (!priorityInput || priorityInput.trim() === '') {
+        alert('Service priority is required.');
+        return;
     }
 
     const serviceData = {
@@ -250,18 +200,16 @@ async function handleServiceSubmit(e) {
         if (response.ok) {
             showNotification(editingServiceId ? 'Service updated!' : 'Service created!', 'success');
             closeServiceModal();
-            renderServicesList(); 
+            renderServicesList();
         } else {
-            //handle backend validation error
             const errorData = await response.json();
             alert(errorData.message || 'Error saving service.');
         }
     } catch (error) {
-        console.error("Save error:", error);
+        console.error('Save error:', error);
         showNotification('Error saving service.', 'error');
     }
 }
-
 
 /**
  * FETCH: Delete a service
@@ -287,14 +235,13 @@ async function openServiceModal(id) {
     const form = document.getElementById('serviceForm');
 
     form.reset();
-    
+
     if (editingServiceId) {
         title.textContent = 'Edit Service';
-        // Fetch specific service data to populate form
         const response = await fetch(`${API_BASE}`);
         const services = await response.json();
         const service = services.find(s => s.id === id);
-        
+
         if (service) {
             document.getElementById('serviceName').value = service.name;
             document.getElementById('serviceDescription').value = service.description;
@@ -312,8 +259,6 @@ function closeServiceModal() {
     document.getElementById('serviceModal').classList.remove('visible');
     editingServiceId = null;
 }
-
-
 
 /* ================================================
    Queue Management
@@ -336,13 +281,13 @@ function initQueueManagement() {
         }
     });
 
-    document.getElementById('serveNextBtn').addEventListener('click', serveNextUser);
+    document.getElementById('serveNextBtn').addEventListener('click', () => serveNextUser());
 }
 
 async function populateServiceSelect(select) {
     try {
-        const response = await fetch(API_BASE); //
-        const services = await response.json(); //
+        const response = await fetch(API_BASE);
+        const services = await response.json();
 
         const options = services
             .map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`)
@@ -350,161 +295,186 @@ async function populateServiceSelect(select) {
 
         select.innerHTML = '<option value="">Choose a service...</option>' + options;
     } catch (error) {
-        console.error("Select population error:", error);
+        console.error('Select population error:', error);
     }
 }
 
-function renderQueue() {
+async function refreshAdminDashboardIfPresent() {
+    if (document.getElementById('statTotalServices')) {
+        await renderDashboard();
+    }
+}
+
+async function renderQueue() {
     if (!selectedServiceId) return;
 
-    const services = getServices();
-    const service = services.find(s => s.id === selectedServiceId);
-    const queues = getQueues();
-    const queue = queues[selectedServiceId] || [];
-
-    document.getElementById('queueServiceTitle').textContent =
-        service ? service.name + ' \u2014 Queue' : 'Queue';
-
-    const estPerPerson = service ? service.expectedDuration : 10;
     const statsEl = document.getElementById('queueStats');
-    statsEl.innerHTML = `
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value">${queue.length}</div>
-                <div class="stat-label">People in Queue</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value">${queue.length > 0 ? (queue.length * estPerPerson) + ' min' : '\u2014'}</div>
-                <div class="stat-label">Est. Total Wait</div>
-            </div>
-        </div>
-    `;
-
     const tableContainer = document.getElementById('queueTableContainer');
 
-    if (queue.length === 0) {
-        tableContainer.innerHTML = '<div class="empty-state"><p>No one is in this queue right now.</p></div>';
-        return;
-    }
+    try {
+        const res = await fetch(`${QUEUE_API}/admin/${selectedServiceId}`, {
+            headers: adminHeaders()
+        });
 
-    const rows = queue.map((person, index) => {
-        const waitMinutes = Math.round((Date.now() - new Date(person.joinedAt).getTime()) / 60000);
-        const displayWait = waitMinutes > 0 ? waitMinutes + ' min' : '< 1 min';
+        if (res.status === 403) {
+            showNotification('Administrator access required.', 'error');
+            tableContainer.innerHTML = '<div class="empty-state"><p>Access denied.</p></div>';
+            return;
+        }
 
-        return `
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            showNotification(err.message || 'Could not load queue.', 'error');
+            tableContainer.innerHTML = '<div class="empty-state"><p>Could not load queue.</p></div>';
+            return;
+        }
+
+        const data = await res.json();
+        const service = data.service;
+        const queue = data.queue || [];
+
+        document.getElementById('queueServiceTitle').textContent =
+            service ? `${service.name} \u2014 Queue` : 'Queue';
+
+        const estPerPerson = service ? service.expectedDuration : 10;
+        statsEl.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">${queue.length}</div>
+                    <div class="stat-label">People in Queue</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${queue.length > 0 ? (queue.length * estPerPerson) + ' min' : '\u2014'}</div>
+                    <div class="stat-label">Est. Total Wait</div>
+                </div>
+            </div>
+        `;
+
+        if (queue.length === 0) {
+            tableContainer.innerHTML = '<div class="empty-state"><p>No one is in this queue right now.</p></div>';
+            return;
+        }
+
+        const rows = queue.map((person) => {
+            const waitMinutes = Math.round(
+                (Date.now() - new Date(person.joinedAt).getTime()) / 60000
+            );
+            const displayWait = waitMinutes > 0 ? waitMinutes + ' min' : '< 1 min';
+            const estRule =
+                person.estimatedWaitMinutes != null
+                    ? `${person.estimatedWaitMinutes} min`
+                    : '\u2014';
+
+            return `
             <tr>
-                <td><span class="queue-position">${index + 1}</span></td>
-                <td><strong>${escapeHtml(person.name)}</strong></td>
-                <td>${escapeHtml(person.email)}</td>
+                <td><span class="queue-position">${person.position}</span></td>
+                <td><strong>${escapeHtml(person.userName)}</strong></td>
+                <td>${escapeHtml(person.userEmail)}</td>
+                <td>${person.priority ?? 0}</td>
+                <td>${estRule}</td>
                 <td>${displayWait}</td>
                 <td>
-                    <div style="display: flex; gap: var(--space-1);">
-                        <button class="btn btn-outline btn-sm btn-icon" data-move-up="${index}" ${index === 0 ? 'disabled' : ''} title="Move up">&#9650;</button>
-                        <button class="btn btn-outline btn-sm btn-icon" data-move-down="${index}" ${index === queue.length - 1 ? 'disabled' : ''} title="Move down">&#9660;</button>
-                        <button class="btn btn-danger btn-sm" data-remove-user="${index}">Remove</button>
-                    </div>
+                    <button type="button" class="btn btn-danger btn-sm" data-remove-email="${escapeHtml(person.userEmail)}">Remove</button>
                 </td>
             </tr>
         `;
-    }).join('');
+        }).join('');
 
-    tableContainer.innerHTML = `
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Wait Time</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-        </table>
-    `;
+        tableContainer.innerHTML = `
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Priority</th>
+                        <th>Est. wait (rule)</th>
+                        <th>Time in queue</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        `;
 
-    tableContainer.querySelectorAll('[data-move-up]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const idx = parseInt(btn.dataset.moveUp, 10);
-            moveQueueUser(idx, idx - 1);
+        tableContainer.querySelectorAll('[data-remove-email]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const email = btn.getAttribute('data-remove-email');
+                removeQueueUser(email);
+            });
         });
-    });
-
-    tableContainer.querySelectorAll('[data-move-down]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const idx = parseInt(btn.dataset.moveDown, 10);
-            moveQueueUser(idx, idx + 1);
-        });
-    });
-
-    tableContainer.querySelectorAll('[data-remove-user]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            removeQueueUser(parseInt(btn.dataset.removeUser, 10));
-        });
-    });
-}
-
-function moveQueueUser(fromIndex, toIndex) {
-    if (!selectedServiceId) return;
-
-    const queues = getQueues();
-    const queue = queues[selectedServiceId] || [];
-
-    if (toIndex < 0 || toIndex >= queue.length) return;
-
-    const [moved] = queue.splice(fromIndex, 1);
-    queue.splice(toIndex, 0, moved);
-
-    queues[selectedServiceId] = queue;
-    saveQueues(queues);
-    renderQueue();
-}
-
-function removeQueueUser(index) {
-    if (!selectedServiceId) return;
-
-    const queues = getQueues();
-    const queue = queues[selectedServiceId] || [];
-    const removed = queue[index];
-
-    if (!removed) return;
-    if (!confirm(`Remove ${removed.name} from the queue?`)) return;
-
-    queue.splice(index, 1);
-    queues[selectedServiceId] = queue;
-    saveQueues(queues);
-    renderQueue();
-    showNotification(`${removed.name} removed from queue.`, 'info');
-}
-
-function serveNextUser() {
-    if (!selectedServiceId) return;
-
-    const queues = getQueues();
-    const queue = queues[selectedServiceId] || [];
-
-    if (queue.length === 0) {
-        showNotification('No one in the queue to serve.', 'error');
-        return;
+    } catch (error) {
+        console.error('Queue load error:', error);
+        showNotification('Could not connect to the server.', 'error');
+        tableContainer.innerHTML = '<div class="empty-state"><p>Error loading queue.</p></div>';
     }
+}
 
-    const served = queue.shift();
-    queues[selectedServiceId] = queue;
-    saveQueues(queues);
-    renderQueue();
-    showNotification(`Now serving: ${served.name}`, 'success');
+async function removeQueueUser(userEmail) {
+    if (!selectedServiceId || !userEmail) return;
+    if (!confirm('Remove this person from the queue?')) return;
+
+    try {
+        const res = await fetch(`${QUEUE_API}/leave`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                serviceId: selectedServiceId,
+                userEmail
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            showNotification(data.message || 'Could not remove user.', 'error');
+            return;
+        }
+        showNotification('User removed from queue.', 'info');
+        await renderQueue();
+        await refreshAdminDashboardIfPresent();
+    } catch (error) {
+        console.error('Remove error:', error);
+        showNotification('Could not connect to the server.', 'error');
+    }
+}
+
+async function serveNextUser() {
+    if (!selectedServiceId) return;
+
+    try {
+        const res = await fetch(
+            `${QUEUE_API}/admin/${selectedServiceId}/serve-next`,
+            {
+                method: 'POST',
+                headers: {
+                    ...adminHeaders(),
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        const data = await res.json().catch(() => ({}));
+
+        if (res.status === 400) {
+            showNotification(data.message || 'No one in the queue to serve.', 'error');
+            return;
+        }
+        if (!res.ok) {
+            showNotification(data.message || 'Could not serve next.', 'error');
+            return;
+        }
+
+        showNotification(`Now serving: ${data.served.userName}`, 'success');
+        await renderQueue();
+        await refreshAdminDashboardIfPresent();
+    } catch (error) {
+        console.error('Serve next error:', error);
+        showNotification('Could not connect to the server.', 'error');
+    }
 }
 
 /* ================================================
    Shared Helpers
    ================================================ */
 
-/**
- * Shows an error message on a form field.
- * @param {HTMLElement} input
- * @param {string} errorId
- * @param {string} message
- */
 function showFieldError(input, errorId, message) {
     const errorEl = document.getElementById(errorId);
     input.classList.add('error');
@@ -512,11 +482,6 @@ function showFieldError(input, errorId, message) {
     errorEl.classList.add('visible');
 }
 
-/**
- * Clears the error message on a form field.
- * @param {HTMLElement} input
- * @param {string} errorId
- */
 function clearFieldError(input, errorId) {
     const errorEl = document.getElementById(errorId);
     input.classList.remove('error');
@@ -524,22 +489,12 @@ function clearFieldError(input, errorId) {
     errorEl.classList.remove('visible');
 }
 
-/**
- * Escapes HTML entities to prevent XSS in rendered content.
- * @param {string} str
- * @returns {string}
- */
 function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
 }
 
-/**
- * Shows a toast notification.
- * @param {string} message
- * @param {'success'|'error'|'info'} type
- */
 function showNotification(message, type) {
     let container = document.getElementById('toastContainer');
 

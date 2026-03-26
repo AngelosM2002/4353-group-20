@@ -47,7 +47,9 @@ async function renderUserStatus() {
             return;
         }
 
-        const waitTime = status.position * status.service.expectedDuration;
+        const waitTime =
+            status.estimatedWaitMinutes ??
+            status.position * status.service.expectedDuration;
 
         container.innerHTML = `
             <section class="card">
@@ -149,10 +151,13 @@ async function renderUserDashboard() {
         const status = await qResponse.json();
 
         if (status.inQueue) {
+            const waitMins =
+                status.estimatedWaitMinutes ??
+                status.position * status.service.expectedDuration;
             statusContainer.innerHTML = `
                 <p><strong>Service:</strong> ${escapeHtml(status.service.name)}</p>
                 <p><strong>Your Position:</strong> #${status.position}</p>
-                <p><strong>Estimated Wait Time:</strong> ${status.position * status.service.expectedDuration} minutes</p>
+                <p><strong>Estimated Wait Time:</strong> ${waitMins} minutes</p>
                 <span class="badge badge-warning" style="margin-top: var(--space-3); display: inline-block;">Waiting</span>
             `;
         } else {

@@ -13,8 +13,12 @@ const services = [];
 //object will store  services and their queues
 const queues = {};
 
+// per-service monotonic counter for stable arrival tie-breaks after sort
+const queueArrivalSeq = {};
+
 module.exports = {
     users,
     services,
-    queues
+    queues,
+    queueArrivalSeq
 };

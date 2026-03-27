@@ -26,27 +26,57 @@
     border-bottom: 1px solid var(--gray-200);
 }
 
-.sidebar-logo {
-    width: 32px;
-    height: 32px;
-    background: var(--gray-900);
-    border-radius: var(--radius-sm);
-    display: flex;
+/* ---------- QueueSmart Logo (Sidebar) ---------- */
+.queuesmart-logo {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    gap: 10px;
 }
 
-.sidebar-logo svg {
-    width: 18px;
-    height: 18px;
-    fill: #fff;
+.icon-q {
+    position: relative;
+    width: 32px;  /* slightly smaller for sidebar */
+    height: 32px;
+    border: 4px solid #0f172a;
+    border-radius: 50%;
+    box-sizing: border-box;
 }
 
-.sidebar-brand {
-    font-size: var(--font-size-base);
-    font-weight: 600;
-    color: var(--gray-900);
+/* Queue dots inside the circle — 3 people waiting */
+.icon-q::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3.5px;
+    height: 3.5px;
+    background: #0f172a;
+    border-radius: 50%;
+    box-shadow:
+        -6px 0 0 0 #0f172a,
+         6px 0 0 0 #0f172a;
+}
+
+/* Arrow tail — flow out of the queue */
+.icon-q::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    right: -3px;
+    width: 12px;
+    height: 4px;
+    background: #0f172a;
+    transform: rotate(45deg);
+    border-radius: 2px;
+}
+
+.logo-text {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 700;
+    font-size: 1.25rem; /* slightly smaller for sidebar */
+    color: #0f172a;
+    letter-spacing: -0.5px;
 }
 
 /* ---------- Sidebar Nav ---------- */

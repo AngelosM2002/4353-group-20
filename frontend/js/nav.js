@@ -55,10 +55,10 @@ function renderNav(container) {
     container.innerHTML = `
         <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
             <div class="sidebar-header">
-                <div class="sidebar-logo">
+                <div class="queuesmart-logo">
                     <div class="icon-q"></div>
+                    <span class="logo-text">QueueSmart</span>
                 </div>
-                <span class="sidebar-brand">QueueSmart</span>
             </div>
 
             <nav class="sidebar-nav">

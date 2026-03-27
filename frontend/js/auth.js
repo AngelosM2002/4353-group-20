@@ -21,22 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* ---------- validaton helpers ---------- */
 
-/**
- * cheks basic email format
- * @param {string} email
- * @returns {boolean}
- */
 function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
 
-/**
- * shows err msg on a field
- * @param {HTMLElement} input the input elem
- * @param {string} errorId id of the error p elem
- * @param {string} message text to show
- */
 function showError(input, errorId, message) {
     const errorEl = document.getElementById(errorId);
     input.classList.add('error');
@@ -44,11 +33,6 @@ function showError(input, errorId, message) {
     errorEl.classList.add('visible');
 }
 
-/**
- * clears err msg on a field
- * @param {HTMLElement} input the input elem
- * @param {string} errorId id of the error p elem
- */
 function clearError(input, errorId) {
     const errorEl = document.getElementById(errorId);
     input.classList.remove('error');
@@ -62,11 +46,9 @@ function initLoginForm(form) {
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
 
-    // realtime validaton on blurr
     emailInput.addEventListener('blur', () => validateLoginEmail(emailInput));
     passwordInput.addEventListener('blur', () => validateLoginPassword(passwordInput));
 
-    // clear erors on focus
     emailInput.addEventListener('focus', () => clearError(emailInput, 'emailError'));
     passwordInput.addEventListener('focus', () => clearError(passwordInput, 'passwordError'));
 
@@ -99,13 +81,16 @@ function initLoginForm(form) {
                     role: result.user.role,
                     loggedIn: true
                 };
+
                 localStorage.setItem('qs_currentUser', JSON.stringify(currentUser));
 
-                if (currentUser.role === 'administrator') {
+                // ✅ FIXED ROLE CHECK (case-insensitive)
+                if (String(currentUser.role).toLowerCase() === 'administrator') {
                     window.location.href = '/frontend/pages/admin/admin-dashboard.html?v=1';
                 } else {
                     window.location.href = '/frontend/pages/user/user-dashboard.html?v=1';
                 }
+
             } else {
                 showError(
                     passwordInput,
@@ -162,7 +147,6 @@ function initRegisterForm(form) {
     const passwordInput = document.getElementById('password');
     const confirmPasswordInput = document.getElementById('confirmPassword');
 
-    // realtime validaton on blurr
     fullNameInput.addEventListener('blur', () => validateFullName(fullNameInput));
     emailInput.addEventListener('blur', () => validateRegEmail(emailInput));
     passwordInput.addEventListener('blur', () => validateRegPassword(passwordInput));
@@ -170,7 +154,6 @@ function initRegisterForm(form) {
         validateConfirmPassword(passwordInput, confirmPasswordInput)
     );
 
-    // clear errors on focus
     fullNameInput.addEventListener('focus', () => clearError(fullNameInput, 'fullNameError'));
     emailInput.addEventListener('focus', () => clearError(emailInput, 'emailError'));
     passwordInput.addEventListener('focus', () => clearError(passwordInput, 'passwordError'));
@@ -178,7 +161,6 @@ function initRegisterForm(form) {
         clearError(confirmPasswordInput, 'confirmPasswordError')
     );
 
-    // use async for backend fetch reqest
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -188,10 +170,8 @@ function initRegisterForm(form) {
         const isConfirmValid = validateConfirmPassword(passwordInput, confirmPasswordInput);
 
         if (isNameValid && isEmailValid && isPasswordValid && isConfirmValid) {
-            // get selected role
             const role = document.querySelector('input[name="role"]:checked').value;
 
-            // prepeare user data for backend
             const userData = {
                 name: fullNameInput.value.trim(),
                 email: emailInput.value.trim(),
@@ -200,7 +180,6 @@ function initRegisterForm(form) {
             };
 
             try {
-                // send data to the backend at port 3000
                 const response = await fetch('http://localhost:3000/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -210,7 +189,6 @@ function initRegisterForm(form) {
                 const result = await response.json();
 
                 if (response.ok) {
-                    // show success msg if backend confirms registraion
                     form.style.display = 'none';
                     const footer = document.getElementById('registerFooter');
                     const successMsg = document.getElementById('registerSuccess');
@@ -218,7 +196,6 @@ function initRegisterForm(form) {
                     if (footer) footer.style.display = 'none';
                     if (successMsg) successMsg.classList.add('visible');
                 } else {
-                    // show backend error (like "user already exists")
                     showError(emailInput, 'emailError', result.message || 'registration failed');
                 }
             } catch (error) {
@@ -228,7 +205,6 @@ function initRegisterForm(form) {
         }
     });
 }
-
 
 function validateFullName(input) {
     const value = input.value.trim();
@@ -325,20 +301,8 @@ function initPasswordToggles() {
 
             if (input.type === 'password') {
                 input.type = 'text';
-                button.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                    </svg>
-                `;
             } else {
                 input.type = 'password';
-                button.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                `;
             }
         });
     });

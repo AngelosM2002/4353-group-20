@@ -1,41 +1,63 @@
-const { notifications } = require('../data/memoryData');
+// importing the mongoose model instead of memorydata
+const Notification = require('../models/Notification');
+const UserCredential = require('../models/UserCredentials');
 
 // GET /api/notifications?email=user@example.com
-exports.listForUser = (req, res) => {
+exports.listForUser = async (req, res) => {
     const email = req.query.email;
 
     if (!email || typeof email !== 'string') {
         return res.status(400).json({ message: 'email query parameter is required' });
     }
 
-    const normalized = email.trim().toLowerCase();
-    const items = notifications.filter((n) => n.userEmail === normalized);
+    try {
+        const normalized = email.trim().toLowerCase();
 
-    res.json({
-        notifications: items,
-        unreadCount: items.filter((n) => !n.read).length
-    });
+        // find the user first to get their database _id
+        const user = await UserCredential.findOne({ email: normalized });
+        
+        if (!user) {
+            return res.json({ notifications: [], unreadCount: 0 });
+        }
+
+        // fetch notifications from mongodb for this specific user
+        const items = await Notification.find({ userId: user._id }).sort({ timestamp: -1 });
+
+        res.json({
+            notifications: items,
+            // status 'sent' acts as unread, 'viewed' acts as read
+            unreadCount: items.filter((n) => n.status === 'sent').length
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'error retrieving notifications', error: error.message });
+    }
 };
 
 // PATCH /api/notifications/:id/read?email=user@example.com
-exports.markRead = (req, res) => {
-    const id = parseInt(req.params.id, 10);
+exports.markRead = async (req, res) => {
+    const { id } = req.params; // this is now the mongodb _id string
     const email = req.query.email;
 
-    if (Number.isNaN(id)) {
-        return res.status(400).json({ message: 'Invalid notification id' });
-    }
     if (!email || typeof email !== 'string') {
         return res.status(400).json({ message: 'email query parameter is required' });
     }
 
-    const normalized = email.trim().toLowerCase();
-    const row = notifications.find((n) => n.id === id && n.userEmail === normalized);
+    try {
+        const normalized = email.trim().toLowerCase();
+        
+        // find the notification and ensure it belongs to the right user
+        const notification = await Notification.findById(id).populate('userId');
 
-    if (!row) {
-        return res.status(404).json({ message: 'Notification not found' });
+        if (!notification || !notification.userId || notification.userId.email !== normalized) {
+            return res.status(404).json({ message: 'notification not found or access denied' });
+        }
+
+        // update status to viewed in the database
+        notification.status = 'viewed';
+        await notification.save();
+
+        res.json({ message: 'marked as read', notification });
+    } catch (error) {
+        res.status(500).json({ message: 'failed to update notification', error: error.message });
     }
-
-    row.read = true;
-    res.json({ message: 'Marked as read', notification: row });
 };

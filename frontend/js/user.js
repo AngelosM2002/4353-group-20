@@ -30,43 +30,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-//fetch and display user past queue participation 
+// fetch and display user past queue participation from database
 async function loadUserHistory() {
-    const listContainer = document.getElementById('historyPageList'); // Changed this
+    const listContainer = document.getElementById('historyPageList');
     const currentUser = JSON.parse(localStorage.getItem('qs_currentUser'));
 
     if (!currentUser || !listContainer) return;
 
     try {
+        // fetching from the new history endpoint connected to mongodb
         const response = await fetch(`${QUEUE_API}/history/${encodeURIComponent(currentUser.email)}`);
         const historyData = await response.json();
 
         if (historyData.length === 0) {
-            listContainer.innerHTML = '<li>No history records found.</li>';
+            listContainer.innerHTML = '<li>No history records found in database.</li>';
             return;
         }
 
-        // Map to List Items (<li>) to match your history.html structure
+        // map to list items using database fields
         listContainer.innerHTML = historyData.map(item => `
             <li style="padding-bottom: var(--space-3); border-bottom: 1px solid var(--gray-200);">
-                <strong>${escapeHtml(item.serviceName)}</strong><br>
+                <strong>${escapeHtml(item.message || "Service Session")}</strong><br>
                 <span style="font-size: 0.9rem; color: var(--gray-600);">
-                    Date: ${new Date(item.joinedAt).toLocaleDateString()}<br>
-                    Status: <span class="badge ${item.status === 'Left Queue' ? 'badge-danger' : 'badge-success'}">
-                        ${escapeHtml(item.status)}
-                    </span>
+                    Date: ${new Date(item.timestamp || item.createdAt).toLocaleDateString()}<br>
+                    Status: <span class="badge badge-success">Completed</span>
                 </span>
             </li>
         `).reverse().join('');
 
     } catch (error) {
         console.error("History load error:", error);
-        listContainer.innerHTML = '<li>Error loading history.</li>';
+        listContainer.innerHTML = '<li>Error loading history from server.</li>';
     }
 }
 
-
-//show users specific position in their active queue
+// show users specific position in their active queue from mongodb
 async function renderUserStatus() {
     const container = document.getElementById('queueStatusContainer');
     const currentUser = JSON.parse(localStorage.getItem('qs_currentUser'));
@@ -77,7 +75,6 @@ async function renderUserStatus() {
     }
 
     try {
-        //fetch the specific status for this user email
         const response = await fetch(`${QUEUE_API}/status?email=${currentUser.email}`);
         const status = await response.json();
 
@@ -90,9 +87,7 @@ async function renderUserStatus() {
             return;
         }
 
-        const waitTime =
-            status.estimatedWaitMinutes ??
-            status.position * status.service.expectedDuration;
+        const waitTime = status.estimatedWaitMinutes;
 
         container.innerHTML = `
             <section class="card">
@@ -102,7 +97,7 @@ async function renderUserStatus() {
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
                     <span class="badge badge-warning">Waiting</span>
-                    <button class="btn btn-danger btn-sm" onclick="leaveQueue(${status.service.id})">Leave Queue</button>
+                    <button class="btn btn-danger btn-sm" onclick="leaveQueue('${status.service._id || status.service.id}')">Leave Queue</button>
                 </div>
             </section>
         `;
@@ -112,7 +107,7 @@ async function renderUserStatus() {
     }
 }
 
-//get services from backend and display 
+// get services from mongodb and display 
 async function loadAvailableServices() {
     const container = document.getElementById('availableServicesContainer');
     const currentUser = JSON.parse(localStorage.getItem('qs_currentUser'));
@@ -130,12 +125,15 @@ async function loadAvailableServices() {
         }
 
         if (services.length === 0) {
-            container.innerHTML = `<div class="empty-state"><p>No services available.</p></div>`;
+            container.innerHTML = `<div class="empty-state"><p>No services available in database.</p></div>`;
             return;
         }
 
         container.innerHTML = services.map(service => {
-            const isJoined = userStatus.inQueue && userStatus.service.id === service.id;
+            // handle mongodb _id comparison
+            const serviceId = service._id || service.id;
+            const activeServiceId = userStatus.inQueue ? (userStatus.service._id || userStatus.service.id) : null;
+            const isJoined = userStatus.inQueue && activeServiceId === serviceId;
             
             return `
                 <div class="card service-card">
@@ -150,7 +148,7 @@ async function loadAvailableServices() {
                     <div class="card-footer">
                         <button 
                             class="btn ${isJoined ? 'btn-success' : 'btn-primary'} w-100" 
-                            onclick="joinQueue(event, ${service.id})"
+                            onclick="joinQueue(event, '${serviceId}')"
                             ${isJoined ? 'disabled' : ''}
                         >
                             ${isJoined ? '✓ Queue Joined' : 'Join Queue'}
@@ -162,13 +160,11 @@ async function loadAvailableServices() {
 
     } catch (error) {
         console.error("Error:", error);
-        container.innerHTML = '<p class="error-msg">Error loading services.</p>';
+        container.innerHTML = '<p class="error-msg">Error loading services from database.</p>';
     }
 }
 
-
-
-// populate user dashboard with realtime status and services
+// populate user dashboard with realtime database status
 async function renderUserDashboard() {
     const statusContainer = document.getElementById('userStatusSummary');
     const servicesList = document.getElementById('activeServicesList');
@@ -189,25 +185,19 @@ async function renderUserDashboard() {
             `).join('');
 
         if (!currentUser) {
-            statusContainer.innerHTML =
-                '<p>Please log in to see your queue status.</p>';
+            statusContainer.innerHTML = '<p>Please log in to see your queue status.</p>';
             await renderNotificationsSummary();
             return;
         }
 
-        const qResponse = await fetch(
-            `${QUEUE_API}/status?email=${encodeURIComponent(currentUser.email)}`
-        );
+        const qResponse = await fetch(`${QUEUE_API}/status?email=${encodeURIComponent(currentUser.email)}`);
         const status = await qResponse.json();
 
         if (status.inQueue) {
-            const waitMins =
-                status.estimatedWaitMinutes ??
-                status.position * status.service.expectedDuration;
             statusContainer.innerHTML = `
                 <p><strong>Service:</strong> ${escapeHtml(status.service.name)}</p>
                 <p><strong>Your Position:</strong> #${status.position}</p>
-                <p><strong>Estimated Wait Time:</strong> ${waitMins} minutes</p>
+                <p><strong>Estimated Wait Time:</strong> ${status.estimatedWaitMinutes} minutes</p>
                 <span class="badge badge-warning" style="margin-top: var(--space-3); display: inline-block;">Waiting</span>
             `;
         } else {
@@ -229,56 +219,35 @@ async function renderNotificationsSummary() {
 
     const currentUser = JSON.parse(localStorage.getItem('qs_currentUser') || 'null');
     if (!currentUser) {
-        ul.innerHTML =
-            '<li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">Log in to see notifications from the server.</li>';
+        ul.innerHTML = '<li style="padding: var(--space-3);">Log in to see notifications.</li>';
         return;
     }
 
     try {
-        const res = await fetch(
-            `${NOTIFICATION_API}?email=${encodeURIComponent(currentUser.email)}`
-        );
-        if (!res.ok) throw new Error('bad response');
+        const res = await fetch(`${NOTIFICATION_API}?email=${encodeURIComponent(currentUser.email)}`);
         const data = await res.json();
         const items = data.notifications || [];
 
         if (items.length === 0) {
-            ul.innerHTML =
-                '<li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">No notifications yet. Join a queue to receive updates.</li>';
+            ul.innerHTML = '<li style="padding: var(--space-3);">No notifications yet.</li>';
             return;
         }
 
         const preview = items.slice(0, 5);
-        ul.innerHTML = preview
-            .map(
-                n => `
+        ul.innerHTML = preview.map(n => `
             <li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">
-                <span class="badge" style="margin-right: var(--space-2);">${escapeHtml(
-                    formatNotificationType(n.type)
-                )}</span>
-                ${n.read ? '' : '<strong>New · </strong>'}
+                ${n.status === 'sent' ? '<strong>New · </strong>' : ''}
                 ${escapeHtml(n.message)}
-                <div style="font-size: 0.85rem; color: var(--gray-600); margin-top: var(--space-2);">${new Date(
-                    n.createdAt
-                ).toLocaleString()}</div>
+                <div style="font-size: 0.85rem; color: var(--gray-600); margin-top: var(--space-2);">${new Date(n.timestamp).toLocaleString()}</div>
             </li>`
-            )
-            .join('');
+        ).join('');
 
         if (items.length > 5) {
             ul.innerHTML += `<li style="padding: var(--space-2);"><a href="notifications.html">View all (${items.length})</a></li>`;
         }
     } catch (e) {
         console.error('Notifications load error:', e);
-        ul.innerHTML =
-            '<li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">Could not load notifications. Is the backend running?</li>';
     }
-}
-
-function formatNotificationType(type) {
-    if (type === 'queue_joined') return 'Joined';
-    if (type === 'close_to_serve') return 'Near front';
-    return type || 'Notice';
 }
 
 async function loadNotificationsPage() {
@@ -286,71 +255,40 @@ async function loadNotificationsPage() {
     if (!ul) return;
 
     const currentUser = JSON.parse(localStorage.getItem('qs_currentUser') || 'null');
-    if (!currentUser) {
-        ul.innerHTML =
-            '<li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">Please log in to see notifications.</li>';
-        return;
-    }
+    if (!currentUser) return;
 
     try {
-        const res = await fetch(
-            `${NOTIFICATION_API}?email=${encodeURIComponent(currentUser.email)}`
-        );
-        if (!res.ok) throw new Error('bad response');
+        const res = await fetch(`${NOTIFICATION_API}?email=${encodeURIComponent(currentUser.email)}`);
         const data = await res.json();
         const items = data.notifications || [];
 
-        if (items.length === 0) {
-            ul.innerHTML =
-                '<li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">No notifications yet.</li>';
-            return;
-        }
-
-        ul.innerHTML = items
-            .map(
-                n => `
+        ul.innerHTML = items.map(n => `
             <li style="padding: var(--space-4); background: var(--gray-100); border-radius: var(--radius-md);">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3);">
                     <div>
-                        <span class="badge">${escapeHtml(formatNotificationType(n.type))}</span>
-                        ${n.read ? '' : ' <span class="badge badge-warning">Unread</span>'}
+                        ${n.status === 'sent' ? ' <span class="badge badge-warning">Unread</span>' : ''}
                         <p style="margin: var(--space-2) 0 0;">${escapeHtml(n.message)}</p>
-                        <div style="font-size: 0.85rem; color: var(--gray-600); margin-top: var(--space-2);">${new Date(
-                n.createdAt
-            ).toLocaleString()}</div>
+                        <div style="font-size: 0.85rem; color: var(--gray-600); margin-top: var(--space-2);">${new Date(n.timestamp).toLocaleString()}</div>
                     </div>
-                    <button type="button" class="btn btn-outline btn-sm" data-mark-read="${n.id}">Mark read</button>
+                    <button type="button" class="btn btn-outline btn-sm" data-mark-read="${n._id}">Mark read</button>
                 </div>
             </li>`
-            )
-            .join('');
+        ).join('');
 
         ul.querySelectorAll('[data-mark-read]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.getAttribute('data-mark-read');
-                try {
-                    const r = await fetch(
-                        `${NOTIFICATION_API}/${id}/read?email=${encodeURIComponent(
-                            currentUser.email
-                        )}`,
-                        { method: 'PATCH' }
-                    );
-                    if (r.ok) loadNotificationsPage();
-                } catch (err) {
-                    console.error(err);
-                }
+                await fetch(`${NOTIFICATION_API}/${id}/read?email=${encodeURIComponent(currentUser.email)}`, { method: 'PATCH' });
+                loadNotificationsPage();
             });
         });
     } catch (e) {
         console.error(e);
-        ul.innerHTML =
-            '<li style="padding: var(--space-3);">Could not load notifications.</li>';
     }
 }
 
-//add current user to specific service queue
+// join queue by saving to mongodb
 async function joinQueue(event, serviceId) {
-
     const joinBtn = event.currentTarget; 
     const currentUser = JSON.parse(localStorage.getItem('qs_currentUser'));
     
@@ -366,7 +304,8 @@ async function joinQueue(event, serviceId) {
             body: JSON.stringify({
                 serviceId: serviceId,
                 userName: currentUser.name,
-                userEmail: currentUser.email
+                userEmail: currentUser.email,
+                userId: currentUser._id // using the database user ID
             })
         });
 
@@ -374,15 +313,9 @@ async function joinQueue(event, serviceId) {
 
         if (response.ok) {
             joinBtn.innerText = '✓ Queue Joined';
-            joinBtn.style.backgroundColor = 'var(--success)'; 
             joinBtn.disabled = true;
-
             showNotification('Successfully joined!', 'success');
-            
-
-            setTimeout(() => {
-                window.location.href = 'queue-status.html';
-            }, 800);
+            setTimeout(() => { window.location.href = 'queue-status.html'; }, 800);
         } else {
             showNotification(data.message, 'error');
         }
@@ -391,10 +324,7 @@ async function joinQueue(event, serviceId) {
     }
 }
 
-
-
-
-//remove current user from specific service queue
+// remove user from mongodb queue
 async function leaveQueue(serviceId) {
     if (!confirm('Are you sure you want to leave this queue?')) return;
     const currentUser = JSON.parse(localStorage.getItem('qs_currentUser'));
@@ -404,32 +334,23 @@ async function leaveQueue(serviceId) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                serviceId: serviceId.toString(), 
+                serviceId: serviceId, 
                 userEmail: currentUser.email 
             })
         });
 
         if (response.ok) {
             showNotification('Left queue successfully.', 'info');
-            
-            // try to redirect
             window.location.href = 'user-dashboard.html';
-
-            // fallback; incase redirect doesnt work 
-            if (document.getElementById('queueStatusContainer')) {
-                renderUserStatus(); 
-            }
         } else {
             const errorData = await response.json();
             showNotification(errorData.message || 'Error leaving queue', 'error');
         }
     } catch (error) {
         console.error("Leave error:", error);
-        // If the server call worked but the UI is stuck, just refresh
         location.reload(); 
     }
 }
-
 
 function escapeHtml(str) {
     const div = document.createElement('div');
@@ -442,18 +363,13 @@ function showNotification(message, type) {
     if (!container) {
         container = document.createElement('div');
         container.id = 'toastContainerUser';
-        container.style.cssText =
-            'position:fixed;bottom:20px;right:20px;z-index:10000;display:flex;flex-direction:column;gap:8px;';
+        container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:10000;display:flex;flex-direction:column;gap:8px;';
         document.body.appendChild(container);
     }
     const toast = document.createElement('div');
-    toast.style.cssText =
-        'padding:12px 16px;border-radius:8px;color:#fff;max-width:280px;box-shadow:0 4px 12px rgba(0,0,0,.15);';
-    toast.style.background =
-        type === 'error' ? '#c0392b' : type === 'success' ? '#27ae60' : '#2c3e50';
+    toast.style.cssText = 'padding:12px 16px;border-radius:8px;color:#fff;max-width:280px;box-shadow:0 4px 12px rgba(0,0,0,.15);';
+    toast.style.background = type === 'error' ? '#c0392b' : type === 'success' ? '#27ae60' : '#2c3e50';
     toast.textContent = message;
     container.appendChild(toast);
-    setTimeout(() => {
-        toast.remove();
-    }, 3200);
+    setTimeout(() => { toast.remove(); }, 3200);
 }

@@ -1,4 +1,8 @@
-const { queues, services, queueArrivalSeq, history } = require('../data/memoryData');
+// importing mongoose models instead of memorydata arrays
+const QueueEntry = require('../models/QueueEntry');
+const Service = require('../models/Service');
+const History = require('../models/Notification'); // using the notification/history model
+
 const {
     recordQueueJoined,
     syncNearFrontForService,
@@ -7,21 +11,8 @@ const {
 
 /**
  * Higher priority value is served first; ties use earlier joinedAt, then arrivalOrder.
+ * this is now handled by mongodb .sort() in the fetch calls.
  */
-function sortQueueEntries(serviceIdKey) {
-    const list = queues[serviceIdKey];
-    if (!list || list.length === 0) return;
-
-    list.sort((a, b) => {
-        const pa = a.priority ?? 0;
-        const pb = b.priority ?? 0;
-        if (pb !== pa) return pb - pa;
-        const ta = new Date(a.joinedAt).getTime();
-        const tb = new Date(b.joinedAt).getTime();
-        if (ta !== tb) return ta - tb;
-        return (a.arrivalOrder ?? 0) - (b.arrivalOrder ?? 0);
-    });
-}
 
 function normalizeServiceId(raw) {
     if (raw === undefined || raw === null) return null;
@@ -47,249 +38,271 @@ exports.requireAdmin = (req, res, next) => {
 };
 
 // GET /api/queues/admin/:serviceId - view current queue (ordered)
-exports.getAdminQueue = (req, res) => {
+exports.getAdminQueue = async (req, res) => {
     const serviceIdKey = normalizeServiceId(req.params.serviceId);
-    const service = services.find(s => String(s.id) === serviceIdKey);
+    
+    try {
+        const service = await Service.findById(serviceIdKey);
 
-    if (!service) {
-        return res.status(404).json({ message: 'Service not found' });
+        if (!service) {
+            return res.status(404).json({ message: 'Service not found' });
+        }
+
+        // fetch from mongodb with specific sorting: priority DESC, joinedAt ASC
+        const queueEntries = await QueueEntry.find({ 
+            serviceId: serviceIdKey, 
+            status: 'waiting' 
+        }).sort({ priority: -1, joinedAt: 1 });
+
+        const queue = queueEntries.map((entry, index) => {
+            const position = index + 1;
+            return {
+                position,
+                userName: entry.userName,
+                userEmail: entry.userEmail,
+                joinedAt: entry.joinedAt,
+                priority: entry.priority ?? 0,
+                estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration)
+            };
+        });
+
+        console.log(`[ADMIN] View queue for service ${service.name} (${queue.length} waiting)`);
+
+        res.json({
+            service,
+            queue,
+            count: queue.length
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error retrieving queue', error: error.message });
     }
-
-    if (!queues[serviceIdKey]) {
-        queues[serviceIdKey] = [];
-    }
-
-    sortQueueEntries(serviceIdKey);
-
-    const queue = queues[serviceIdKey].map((entry, index) => {
-        const position = index + 1;
-        return {
-            position,
-            userName: entry.userName,
-            userEmail: entry.userEmail,
-            joinedAt: entry.joinedAt,
-            priority: entry.priority ?? 0,
-            arrivalOrder: entry.arrivalOrder,
-            estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration)
-        };
-    });
-
-    console.log(`[ADMIN] View queue for service ${service.name} (${queue.length} waiting)`);
-
-    res.json({
-        service,
-        queue,
-        count: queue.length
-    });
 };
 
 // POST /api/queues/admin/:serviceId/serve-next - remove next person in order, and add to history
-exports.serveNext = (req, res) => {
+exports.serveNext = async (req, res) => {
     const serviceIdKey = normalizeServiceId(req.params.serviceId);
-    const service = services.find(s => String(s.id) === serviceIdKey);
+    
+    try {
+        const service = await Service.findById(serviceIdKey);
 
-    if (!service) {
-        return res.status(404).json({ message: 'Service not found' });
+        if (!service) {
+            return res.status(404).json({ message: 'Service not found' });
+        }
+
+        // find the first person in line based on sorting rules
+        const servedEntry = await QueueEntry.findOne({ 
+            serviceId: serviceIdKey, 
+            status: 'waiting' 
+        }).sort({ priority: -1, joinedAt: 1 });
+
+        if (!servedEntry) {
+            return res.status(400).json({ message: 'Queue is empty' });
+        }
+
+        // update status to served in database
+        servedEntry.status = 'served';
+        await servedEntry.save();
+
+        // history logic - using notification model to track history
+        await History.create({
+            userId: servedEntry.userId,
+            message: `Served: ${service.name} at ${new Date().toLocaleString()}`,
+            status: 'sent'
+        });
+
+        console.log(`[HISTORY] User ${servedEntry.userEmail} was officially Served.`);
+        console.log(`[ADMIN] Served next: ${servedEntry.userEmail} for service ${service.name}`);
+
+        syncNearFrontForService(serviceIdKey);
+
+        const remainingCount = await QueueEntry.countDocuments({ serviceId: serviceIdKey, status: 'waiting' });
+
+        res.json({
+            message: 'Next user served',
+            served: {
+                userName: servedEntry.userName,
+                userEmail: servedEntry.userEmail,
+                joinedAt: servedEntry.joinedAt,
+                priority: servedEntry.priority ?? 0
+            },
+            remaining: remainingCount
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Serve next failed', error: error.message });
     }
-
-    if (!queues[serviceIdKey] || queues[serviceIdKey].length === 0) {
-        return res.status(400).json({ message: 'Queue is empty' });
-    }
-
-    // sort and remove person at the front
-    sortQueueEntries(serviceIdKey);
-    const served = queues[serviceIdKey].shift();
-
-    // history logic
-    const historyEntry = {
-        userEmail: served.userEmail,
-        userName: served.userName,
-        serviceName: service.name,
-        joinedAt: served.joinedAt,
-        completedAt: new Date().toISOString(),
-        status: 'Served'
-    };
-
-    // push to history array 
-    history.push(historyEntry);
-    console.log(`[HISTORY] User ${served.userEmail} was officially Served.`);
-
-    console.log(`[ADMIN] Served next: ${served.userEmail} for service ${service.name}`);
-    console.log(`[INFO] Remaining in queue: ${queues[serviceIdKey].length}`);
-
-    syncNearFrontForService(serviceIdKey);
-
-    res.json({
-        message: 'Next user served',
-        served: {
-            userName: served.userName,
-            userEmail: served.userEmail,
-            joinedAt: served.joinedAt,
-            priority: served.priority ?? 0
-        },
-        remaining: queues[serviceIdKey].length
-    });
 };
 
 // POST /api/queues/join
-exports.joinQueue = (req, res) => {
-    const { serviceId, userName, userEmail } = req.body;
+exports.joinQueue = async (req, res) => {
+    const { serviceId, userName, userEmail, userId } = req.body; // added userId for database reference
 
     if (!serviceId || !userName || !userEmail) {
         return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    const service = services.find(s => s.id === parseInt(serviceId, 10));
-    if (!service) {
-        return res.status(404).json({ message: 'Service not found' });
-    }
-
-    const serviceIdKey = normalizeServiceId(serviceId);
-
-    if (!queues[serviceIdKey]) {
-        queues[serviceIdKey] = [];
-    }
-
-    const alreadyIn = queues[serviceIdKey].some(u => u.userEmail === userEmail);
-    if (alreadyIn) {
-        return res.status(400).json({ message: 'You are already in this queue' });
-    }
-
-    let priority = service.priorityLevel;
-    if (req.body.priority !== undefined && req.body.priority !== '') {
-        const p = parseInt(req.body.priority, 10);
-        if (!Number.isNaN(p)) {
-            priority = p;
+    try {
+        const service = await Service.findById(serviceId);
+        if (!service) {
+            return res.status(404).json({ message: 'Service not found' });
         }
+
+        const alreadyIn = await QueueEntry.findOne({ 
+            serviceId: serviceId, 
+            userEmail: userEmail, 
+            status: 'waiting' 
+        });
+
+        if (alreadyIn) {
+            return res.status(400).json({ message: 'You are already in this queue' });
+        }
+
+        let priority = service.priorityLevel;
+        if (req.body.priority !== undefined && req.body.priority !== '') {
+            const p = parseInt(req.body.priority, 10);
+            if (!Number.isNaN(p)) {
+                priority = p;
+            }
+        }
+
+        // creating the database entry
+        const newEntry = await QueueEntry.create({
+            serviceId,
+            userId: userId || null, // ensure this is passed from frontend or session
+            userName,
+            userEmail,
+            priority,
+            position: 0, // temporary, calculated on retrieval
+            status: 'waiting'
+        });
+
+        // calculate position for response
+        const totalAhead = await QueueEntry.countDocuments({
+            serviceId: serviceId,
+            status: 'waiting',
+            $or: [
+                { priority: { $gt: priority } },
+                { priority: priority, joinedAt: { $lt: newEntry.joinedAt } }
+            ]
+        });
+
+        const position = totalAhead + 1;
+
+        console.log(`[QUEUE] User ${userName} (${userEmail}) joined database queue for ${service.name}`);
+
+        recordQueueJoined(userEmail, service, position, totalAhead + 1);
+        syncNearFrontForService(serviceId);
+
+        res.status(201).json({
+            message: 'Joined queue successfully',
+            position,
+            priority,
+            estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration)
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error joining queue', error: error.message });
     }
-
-    if (!queueArrivalSeq[serviceIdKey]) {
-        queueArrivalSeq[serviceIdKey] = 1;
-    }
-    const arrivalOrder = queueArrivalSeq[serviceIdKey];
-    queueArrivalSeq[serviceIdKey] += 1;
-
-    const queueEntry = {
-        userName,
-        userEmail,
-        joinedAt: new Date().toISOString(),
-        priority,
-        arrivalOrder
-    };
-
-    queues[serviceIdKey].push(queueEntry);
-    sortQueueEntries(serviceIdKey);
-
-    const position = queues[serviceIdKey].findIndex(u => u.userEmail === userEmail) + 1;
-
-    console.log(`[QUEUE] User ${userName} (${userEmail}) is joining queue for ${service.name}`);
-    console.log(`[INFO] Current queue length for ${service.name}: ${queues[serviceIdKey].length}`);
-
-    recordQueueJoined(userEmail, service, position, queues[serviceIdKey].length);
-    syncNearFrontForService(serviceIdKey);
-
-    res.status(201).json({
-        message: 'Joined queue successfully',
-        position,
-        priority,
-        estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration)
-    });
 };
 
 // POST /api/queues/leave
-exports.leaveQueue = (req, res) => {
+exports.leaveQueue = async (req, res) => {
     const { serviceId, userEmail } = req.body;
 
-    if (serviceId === undefined || serviceId === null || !userEmail) {
+    if (!serviceId || !userEmail) {
         return res.status(400).json({ message: 'serviceId and userEmail are required' });
     }
 
-    const serviceIdKey = normalizeServiceId(serviceId);
+    try {
+        const entry = await QueueEntry.findOne({ 
+            serviceId: serviceId, 
+            userEmail: userEmail, 
+            status: 'waiting' 
+        });
 
-    if (!queues[serviceIdKey]) {
-        return res.status(404).json({ message: 'Queue not found' });
+        if (entry) {
+            const service = await Service.findById(serviceId);
+            
+            // update entry to cancelled status
+            entry.status = 'cancelled';
+            await entry.save();
+
+            // create history entry in notification collection
+            await History.create({
+                userId: entry.userId,
+                message: `Left Queue: ${service ? service.name : 'Unknown Service'}`,
+                status: 'sent'
+            });
+
+            console.log(`[HISTORY] Recorded cancellation for ${userEmail}`);
+            console.log(`[QUEUE] User ${userEmail} successfully removed from database`);
+            
+            clearNearFrontForUserOnService(userEmail, serviceId);
+            syncNearFrontForService(serviceId);
+
+            return res.json({ message: 'Left queue successfully' });
+        }
+
+        return res.status(404).json({ message: 'User was not found in this queue' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error leaving queue', error: error.message });
     }
-
-    // find user data before removing (for history feature) 
-    const userToRecord = queues[serviceIdKey].find(u => u.userEmail === userEmail);
-
-    if (userToRecord) {
-        // create history entry 
-        const service = services.find(s => normalizeServiceId(s.id) === serviceIdKey);
-        
-        const historyEntry = {
-            userEmail: userToRecord.userEmail,
-            userName: userToRecord.userName,
-            serviceName: service ? service.name : 'Unknown Service',
-            joinedAt: userToRecord.joinedAt,
-            completedAt: new Date().toISOString(),
-            status: 'Left Queue'
-        };
-
-        //push to history array 
-        history.push(historyEntry);
-        console.log(`[HISTORY] Recorded session for ${userEmail}`);
-
-        //removal logic
-        queues[serviceIdKey] = queues[serviceIdKey].filter(u => u.userEmail !== userEmail);
-
-        console.log(`[QUEUE] User ${userEmail} successfully removed from service ${serviceIdKey}`);
-        clearNearFrontForUserOnService(userEmail, serviceIdKey);
-        syncNearFrontForService(serviceIdKey);
-
-        return res.json({ message: 'Left queue successfully' });
-    }
-
-    return res.status(404).json({ message: 'User was not found in this queue' });
 };
 
 //get user history
-exports.getUserHistory = (req, res) => {
+exports.getUserHistory = async (req, res) => {
     const { email } = req.params;
     
     if (!email) {
         return res.status(400).json({ message: 'Email parameter is required' });
     }
 
-    const userHistory = history.filter(h => h.userEmail.toLowerCase() === email.toLowerCase());
-    
-    res.json(userHistory);
+    try {
+        // fetching from notification/history collection in mongodb
+        const userHistory = await History.find().populate('userId');
+        // filtering by email (in a real app, you'd query by userId directly)
+        const filteredHistory = userHistory.filter(h => h.userId && h.userId.email === email);
+        
+        res.json(filteredHistory);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching history', error: error.message });
+    }
 };
 
 // GET /api/queues/status?email=user@example.com
-exports.getUserStatus = (req, res) => {
+exports.getUserStatus = async (req, res) => {
     const { email } = req.query;
 
     if (!email) {
         return res.status(400).json({ message: 'Email is required' });
     }
 
-    let status = {
-        inQueue: false,
-        position: -1,
-        service: null,
-        estimatedWaitMinutes: null
-    };
+    try {
+        const entry = await QueueEntry.findOne({ userEmail: email, status: 'waiting' });
 
-    for (const serviceIdKey of Object.keys(queues)) {
-        sortQueueEntries(serviceIdKey);
-        const index = queues[serviceIdKey].findIndex(u => u.userEmail === email);
-
-        if (index !== -1) {
-            const service = services.find(s => String(s.id) === serviceIdKey);
-            if (!service) {
-                break;
-            }
-            const position = index + 1;
-            status = {
-                inQueue: true,
-                position,
-                service,
-                estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration)
-            };
-            break;
+        if (!entry) {
+            return res.json({ inQueue: false, position: -1, service: null, estimatedWaitMinutes: null });
         }
-    }
 
-    res.json(status);
+        const service = await Service.findById(entry.serviceId);
+        
+        // calculate position based on priority and time
+        const totalAhead = await QueueEntry.countDocuments({
+            serviceId: entry.serviceId,
+            status: 'waiting',
+            $or: [
+                { priority: { $gt: entry.priority } },
+                { priority: entry.priority, joinedAt: { $lt: entry.joinedAt } }
+            ]
+        });
+
+        const position = totalAhead + 1;
+
+        res.json({
+            inQueue: true,
+            position,
+            service,
+            estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration)
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error checking status', error: error.message });
+    }
 };

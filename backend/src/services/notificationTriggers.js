@@ -1,4 +1,3 @@
-// importing mongoose models now
 const Notification = require('../models/Notification');
 const UserCredential = require('../models/UserCredentials');
 const QueueEntry = require('../models/QueueEntry');
@@ -6,7 +5,6 @@ const Service = require('../models/Service');
 
 const CLOSE_TO_SERVE_N = 3;
 
-//save to mongodb now
 async function pushNotification({ userEmail, type, message, serviceId, serviceName, meta }) {
     try {
         const user = await UserCredential.findOne({ email: userEmail.toLowerCase() });
@@ -28,15 +26,11 @@ async function pushNotification({ userEmail, type, message, serviceId, serviceNa
     }
 }
 
-/**
- * Top N (N=3): users in positions 1..3 get a one-time "close to serve" ping.
- */
 async function syncNearFrontForService(serviceIdKey) {
     try {
         const service = await Service.findById(serviceIdKey);
         if (!service) return;
 
-        // get the top 3 people currently waiting in the database
         const list = await QueueEntry.find({ 
             serviceId: serviceIdKey, 
             status: 'waiting' 

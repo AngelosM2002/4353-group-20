@@ -38,6 +38,7 @@ async function loadUserHistory() {
     if (!currentUser || !listContainer) return;
 
     try {
+        // fetching from the new history endpoint connected to mongodb
         const response = await fetch(`${QUEUE_API}/history/${encodeURIComponent(currentUser.email)}`);
         const historyData = await response.json();
 
@@ -46,15 +47,23 @@ async function loadUserHistory() {
             return;
         }
 
-        listContainer.innerHTML = historyData.map(item => `
-            <li style="padding-bottom: var(--space-3); border-bottom: 1px solid var(--gray-200);">
-                <strong>${escapeHtml(item.message || "Service Session")}</strong><br>
-                <span style="font-size: 0.9rem; color: var(--gray-600);">
-                    Date: ${new Date(item.timestamp || item.createdAt).toLocaleDateString()}<br>
-                    Status: <span class="badge badge-success">Completed</span>
-                </span>
-            </li>
-        `).reverse().join('');
+        // map to list items using database fields
+        listContainer.innerHTML = historyData.map(item => {
+            // Determine badge class and text based on the notification type
+            const isCancelled = item.type === 'cancelled';
+            const badgeClass = isCancelled ? 'badge-danger' : 'badge-success';
+            const statusText = isCancelled ? 'Cancelled' : 'Completed';
+
+            return `
+                <li style="padding-bottom: var(--space-3); border-bottom: 1px solid var(--gray-200);">
+                    <strong>${escapeHtml(item.message || "Service Session")}</strong><br>
+                    <span style="font-size: 0.9rem; color: var(--gray-600);">
+                        Date: ${new Date(item.timestamp || item.createdAt).toLocaleDateString()}<br>
+                        Status: <span class="badge ${badgeClass}">${statusText}</span>
+                    </span>
+                </li>
+            `;
+        }).join(''); // Removed .reverse() because backend is now sorting newest first
 
     } catch (error) {
         console.error("History load error:", error);
@@ -130,6 +139,7 @@ async function loadAvailableServices() {
         }
 
         container.innerHTML = services.map(service => {
+            // handle mongodb _id comparison
             const serviceId = service._id || service.id;
             const activeServiceId = userStatus.inQueue ? (userStatus.service._id || userStatus.service.id) : null;
             const isJoined = userStatus.inQueue && activeServiceId === serviceId;
@@ -295,7 +305,8 @@ async function loadNotificationsPage() {
     }
 }
 
-// join queue
+
+// join queue by saving to mongodb
 async function joinQueue(event, serviceId) {
     const joinBtn = event.currentTarget; 
     const currentUser = JSON.parse(localStorage.getItem('qs_currentUser'));

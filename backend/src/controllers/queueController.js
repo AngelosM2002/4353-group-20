@@ -1,6 +1,7 @@
 const QueueEntry = require('../models/QueueEntry');
 const Service = require('../models/Service');
 const History = require('../models/Notification'); 
+const UserCredential = require('../models/UserCredentials'); 
 
 const {
     recordQueueJoined,
@@ -106,7 +107,8 @@ exports.serveNext = async (req, res) => {
             await History.create({
                 userId: servedEntry.userId,
                 message: `Served: ${service.name} at ${new Date().toLocaleString()}`,
-                status: 'sent'
+                status: 'sent',
+                type: 'served'
             });
         }
 
@@ -134,7 +136,7 @@ exports.serveNext = async (req, res) => {
 
 // POST /api/queues/join
 exports.joinQueue = async (req, res) => {
-    const { serviceId, userName, userEmail, userId } = req.body; // added userId for database reference
+    const { serviceId, userName, userEmail, userId } = req.body; 
 
     if (!serviceId || !userName || !userEmail) {
         return res.status(400).json({ message: 'Missing required fields' });
@@ -167,15 +169,14 @@ exports.joinQueue = async (req, res) => {
         // creating the database entry
         const newEntry = await QueueEntry.create({
             serviceId,
-            userId: userId || null, // ensure this is passed from frontend or session
+            userId: userId || null, 
             userName,
             userEmail,
             priority,
-            position: 0, // temporary, calculated on retrieval
+            position: 0, 
             status: 'waiting'
         });
 
-        // calculate position for response
         const totalAhead = await QueueEntry.countDocuments({
             serviceId: serviceId,
             status: 'waiting',
@@ -229,7 +230,8 @@ exports.leaveQueue = async (req, res) => {
                 await History.create({
                     userId: entry.userId,
                     message: `Left Queue: ${service ? service.name : 'Unknown Service'}`,
-                    status: 'sent'
+                    status: 'sent',
+                    type: 'cancelled'
                 });
             }
 
@@ -249,7 +251,7 @@ exports.leaveQueue = async (req, res) => {
     }
 };
 
-//get user history
+// GET /api/queues/history/:email
 exports.getUserHistory = async (req, res) => {
     const { email } = req.params;
     
@@ -258,14 +260,24 @@ exports.getUserHistory = async (req, res) => {
     }
 
     try {
-        // fetching from notification/history collection in mongodb
-        const userHistory = await History.find().populate('userId');
-        // filtering by email (in a real app, you'd query by userId directly)
-        const filteredHistory = userHistory.filter(h => h.userId && h.userId.email === email);
+        // Ensure UserCredential schema is loaded for population
+        const userHistory = await History.find()
+            .populate('userId')
+            .sort({ timestamp: -1 }); // Sorting by newest first
+            
+        // Filtering by email with null-safe checks
+        const filteredHistory = userHistory.filter(h => 
+            h.userId && 
+            h.userId.email && 
+            h.userId.email.toLowerCase() === email.toLowerCase()
+        );
         
+        // Always return an array to prevent frontend mapping errors
         res.json(filteredHistory);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching history', error: error.message });
+        console.error("History Fetch Error:", error);
+        // Return an empty array on error to prevent frontend crashes
+        res.status(500).json([]);
     }
 };
 

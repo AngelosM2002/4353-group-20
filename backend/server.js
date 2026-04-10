@@ -1,8 +1,11 @@
 const express = require('express');
 const cors = require('cors');
+require('dotenv').config();
+
+const connectDB = require('./src/config/db');
 
 const app = express();
-const port = process.env.port || 3000;
+const port = process.env.PORT || 3000;
 
 // middleware
 app.use(cors());
@@ -38,10 +41,12 @@ app.use((err, req, res, next) => {
     });
 });
 
-// start server
+// start server — connect to MongoDB first, then listen
 if (require.main === module) {
-    app.listen(port, () => {
-        console.log(`server is running on http://localhost:${port}`);
+    connectDB().then(() => {
+        app.listen(port, () => {
+            console.log(`server is running on http://localhost:${port}`);
+        });
     });
 }
 

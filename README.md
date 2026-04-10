@@ -43,5 +43,5 @@ A web application that helps organizations manage queues and appointments effici
 ## Tech Stack
 - **Frontend:** HTML, CSS, JavaScript
 - **Backend:** Node.js, Express.js
+- **Database:** MongoDB (Mongoose ODM)
 - **Testing:** Jest, Supertest
-- **Data Storage:** In-memory (JavaScript Arrays)

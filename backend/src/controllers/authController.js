@@ -1,6 +1,7 @@
-const { users } = require('../data/memoryData');
+const UserCredentials = require('../models/UserCredentials');
+const UserProfile = require('../models/UserProfile');
 
-exports.register = (req, res) => {
+exports.register = async (req, res) => {
     const { name, email, password, role } = req.body;
 
     console.log('--- NEW REGISTRATION ATTEMPT ---');
@@ -16,15 +17,6 @@ exports.register = (req, res) => {
         return res.status(400).json({ message: 'A valid email is required' });
     }
 
-    // check uniqueness (only email must be unique)
-    const emailExists = users.some(u => u.email.toLowerCase() === email.toLowerCase());
-
-    if (emailExists) {
-        console.log(`[AUTH ERROR] Account cannot be created: ${email} already exists.`);
-        return res.status(400).json({ message: 'An account with this email already exists.' });
-    }
-
-
     // password validation 
     if (!password || password.length < 6) {
         return res.status(400).json({ message: 'Password must be at least 6 characters' });
@@ -34,15 +26,45 @@ exports.register = (req, res) => {
         return res.status(400).json({ message: 'Role must be "User" or "Administrator"' });
     }
 
-    // save user
-    const newUser = { name, email, password, role };
-    users.push(newUser);
+    try {
+        // check if a user with this email already exists
+        const existingUser = await UserCredentials.findOne({ email: email.toLowerCase() });
+        if (existingUser) {
+            console.log(`[AUTH ERROR] Account cannot be created: ${email} already exists.`);
+            return res.status(400).json({ message: 'An account with this email already exists.' });
+        }
 
-    res.status(201).json({ message: 'User registered successfully', user: newUser });
+        // create credentials (password gets hashed automatically by the pre-save hook)
+        const credentials = await UserCredentials.create({
+            email: email.toLowerCase(),
+            password,
+            role: role.toLowerCase()
+        });
+
+        // create the user profile linked to the credentials
+        const profile = await UserProfile.create({
+            userId: credentials._id,
+            fullName: name.trim(),
+            email: email.toLowerCase()
+        });
+
+        res.status(201).json({
+            message: 'User registered successfully',
+            user: {
+                id: credentials._id,
+                name: profile.fullName,
+                email: credentials.email,
+                role: credentials.role
+            }
+        });
+    } catch (error) {
+        console.error('Registration error:', error.message);
+        res.status(500).json({ message: 'Server error during registration' });
+    }
 };
 
 
-exports.login = (req, res) => {
+exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     console.log('--- USER LOGIN ATTEMPT ---');
@@ -58,21 +80,42 @@ exports.login = (req, res) => {
         return res.status(400).json({ message: 'Email and password must be valid strings' });
     }
 
-    const user = users.find(u => u.email === email && u.password === password);
+    try {
+        // find user credentials by email
+        const credentials = await UserCredentials.findOne({ email: email.toLowerCase() });
 
-    if (!user) {
-        console.warn(`Login failed: invalid credentials for ${email}`);
-        return res.status(401).json({ message: 'invalid email or password' });
+        if (!credentials) {
+            console.warn(`Login failed: no account found for ${email}`);
+            return res.status(401).json({ message: 'invalid email or password' });
+        }
+
+        // compare the provided password against the stored hash
+        const isMatch = await credentials.comparePassword(password);
+
+        if (!isMatch) {
+            console.warn(`Login failed: invalid credentials for ${email}`);
+            return res.status(401).json({ message: 'invalid email or password' });
+        }
+
+        // fetch the user profile for the display name
+        const profile = await UserProfile.findOne({ userId: credentials._id });
+
+        console.log('--- USER LOGGED IN ---');
+        console.log(`Name: ${profile ? profile.fullName : 'N/A'}`);
+        console.log(`Email: ${credentials.email}`);
+        console.log(`Role: ${credentials.role}`);
+        console.log('----------------------');
+
+        res.json({
+            message: 'login successful',
+            user: {
+                name: profile ? profile.fullName : '',
+                email: credentials.email,
+                role: credentials.role
+            }
+        });
+    } catch (error) {
+        console.error('Login error:', error.message);
+        res.status(500).json({ message: 'Server error during login' });
     }
-
-    console.log('--- USER LOGGED IN ---');
-    console.log(`Name: ${user.name}`);
-    console.log(`Email: ${user.email}`);
-    console.log(`Role: ${user.role}`);
-    console.log('----------------------');
-
-    res.json({
-        message: 'login successful',
-        user: { name: user.name, email: user.email, role: user.role }
-    });
 };

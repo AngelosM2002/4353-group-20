@@ -1,100 +1,84 @@
-const {
-    notifications,
-    nearServeNotified,
-    queues,
-    services
-} = require('../data/memoryData');
+// importing mongoose models now
+const Notification = require('../models/Notification');
+const UserCredential = require('../models/UserCredentials');
+const QueueEntry = require('../models/QueueEntry');
+const Service = require('../models/Service');
 
 const CLOSE_TO_SERVE_N = 3;
 
-let nextNotificationId = 1;
+//save to mongodb now
+async function pushNotification({ userEmail, type, message, serviceId, serviceName, meta }) {
+    try {
+        const user = await UserCredential.findOne({ email: userEmail.toLowerCase() });
+        if (!user) return null;
 
-function sortQueueEntries(serviceIdKey) {
-    const list = queues[serviceIdKey];
-    if (!list || list.length === 0) return;
+        const row = await Notification.create({
+            userId: user._id,
+            type: type || 'notice',
+            message: message,
+            status: 'sent', 
+            timestamp: new Date(),
+            meta: meta ? JSON.stringify(meta) : null 
+        });
 
-    list.sort((a, b) => {
-        const pa = a.priority ?? 0;
-        const pb = b.priority ?? 0;
-        if (pb !== pa) return pb - pa;
-        const ta = new Date(a.joinedAt).getTime();
-        const tb = new Date(b.joinedAt).getTime();
-        if (ta !== tb) return ta - tb;
-        return (a.arrivalOrder ?? 0) - (b.arrivalOrder ?? 0);
-    });
+        console.log(`[DATABASE-NOTIFY] ${type} -> ${userEmail}: ${message}`);
+        return row;
+    } catch (error) {
+        console.error("[ERROR] Failed to save notification to MongoDB:", error);
+    }
 }
 
 /**
- * In-memory notification (no email/SMS). Newest first when listed.
+ * Top N (N=3): users in positions 1..3 get a one-time "close to serve" ping.
  */
-function pushNotification({ userEmail, type, message, serviceId, serviceName, meta }) {
-    const row = {
-        id: nextNotificationId++,
-        userEmail: String(userEmail).toLowerCase(),
-        type,
-        message,
-        serviceId: serviceId != null ? Number(serviceId) : null,
-        serviceName: serviceName || null,
-        read: false,
-        createdAt: new Date().toISOString(),
-        meta: meta || null
-    };
-    notifications.unshift(row);
-    console.log(`[NOTIFY] ${type} -> ${row.userEmail}: ${message}`);
-    return row;
-}
+async function syncNearFrontForService(serviceIdKey) {
+    try {
+        const service = await Service.findById(serviceIdKey);
+        if (!service) return;
 
-/**
- * Top N (N=3): users in positions 1..3 get a one-time "close to serve" ping per visit to that band.
- */
-function syncNearFrontForService(serviceIdKey) {
-    const service = services.find(s => String(s.id) === serviceIdKey);
-    if (!service) return;
+        // get the top 3 people currently waiting in the database
+        const list = await QueueEntry.find({ 
+            serviceId: serviceIdKey, 
+            status: 'waiting' 
+        }).sort({ priority: -1, joinedAt: 1 }).limit(CLOSE_TO_SERVE_N);
 
-    sortQueueEntries(serviceIdKey);
-    const list = queues[serviceIdKey] || [];
-    const currentTopKeys = new Set();
+        for (let i = 0; i < list.length; i++) {
+            const position = i + 1;
+            const entry = list[i];
 
-    for (let i = 0; i < Math.min(CLOSE_TO_SERVE_N, list.length); i++) {
-        const position = i + 1;
-        const entry = list[i];
-        const key = `${entry.userEmail.toLowerCase()}|${serviceIdKey}`;
-        currentTopKeys.add(key);
-
-        if (!nearServeNotified.has(key)) {
-            nearServeNotified.add(key);
-            pushNotification({
-                userEmail: entry.userEmail,
-                type: 'close_to_serve',
-                message: `You are in the front spots for "${service.name}" (position ${position} of ${list.length}).`,
-                serviceId: service.id,
-                serviceName: service.name,
-                meta: { position, queueLength: list.length, rule: `position <= ${CLOSE_TO_SERVE_N}` }
+            const alreadyNotified = await Notification.findOne({
+                userId: entry.userId,
+                message: { $regex: service.name },
+                type: 'close_to_serve'
             });
-        }
-    }
 
-    for (const key of [...nearServeNotified]) {
-        if (key.endsWith(`|${serviceIdKey}`) && !currentTopKeys.has(key)) {
-            nearServeNotified.delete(key);
+            if (!alreadyNotified) {
+                await pushNotification({
+                    userEmail: entry.userEmail,
+                    type: 'close_to_serve',
+                    message: `You are in the front spots for "${service.name}" (position ${position}).`,
+                    serviceId: service._id,
+                    serviceName: service.name
+                });
+            }
         }
+    } catch (error) {
+        console.error("[ERROR] syncNearFront failed:", error);
     }
 }
 
-function recordQueueJoined(userEmail, service, position, queueLength) {
-    pushNotification({
+async function recordQueueJoined(userEmail, service, position, queueLength) {
+    await pushNotification({
         userEmail,
         type: 'queue_joined',
         message: `You joined "${service.name}" (position ${position} of ${queueLength}).`,
-        serviceId: service.id,
-        serviceName: service.name,
-        meta: { position, queueLength }
+        serviceId: service._id,
+        serviceName: service.name
     });
 }
 
 function clearNearFrontForUserOnService(userEmail, serviceIdKey) {
-    const key = `${String(userEmail).toLowerCase()}|${serviceIdKey}`;
-    nearServeNotified.delete(key);
+    console.log(`[INFO] Request to clear front-status for ${userEmail}`);
 }
 
 module.exports = {

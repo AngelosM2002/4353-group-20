@@ -255,37 +255,65 @@ async function loadNotificationsPage() {
     if (!ul) return;
 
     const currentUser = JSON.parse(localStorage.getItem('qs_currentUser') || 'null');
-    if (!currentUser) return;
+    if (!currentUser) {
+        ul.innerHTML = '<li style="padding: var(--space-3);">Please log in to see notifications.</li>';
+        return;
+    }
 
     try {
+        // fetching from the notification api which now queries mongodb
         const res = await fetch(`${NOTIFICATION_API}?email=${encodeURIComponent(currentUser.email)}`);
+        if (!res.ok) throw new Error('bad response');
         const data = await res.json();
+        
+        // mongodb returns an array of documents
         const items = data.notifications || [];
 
-        ul.innerHTML = items.map(n => `
-            <li style="padding: var(--space-4); background: var(--gray-100); border-radius: var(--radius-md);">
+        if (items.length === 0) {
+            ul.innerHTML = '<li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">No notifications yet.</li>';
+            return;
+        }
+
+        ul.innerHTML = items.map(n => {
+            // using the 'status' field from our mongoose model ('sent' vs 'viewed')
+            const isUnread = n.status === 'sent';
+            
+            return `
+            <li style="padding: var(--space-4); background: var(--gray-100); border-radius: var(--radius-md); margin-bottom: var(--space-3);">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3);">
                     <div>
-                        ${n.status === 'sent' ? ' <span class="badge badge-warning">Unread</span>' : ''}
+                        ${isUnread ? '<span class="badge badge-warning">New</span>' : ''}
                         <p style="margin: var(--space-2) 0 0;">${escapeHtml(n.message)}</p>
-                        <div style="font-size: 0.85rem; color: var(--gray-600); margin-top: var(--space-2);">${new Date(n.timestamp).toLocaleString()}</div>
+                        <div style="font-size: 0.85rem; color: var(--gray-600); margin-top: var(--space-2);">
+                            ${new Date(n.timestamp || n.createdAt).toLocaleString()}
+                        </div>
                     </div>
-                    <button type="button" class="btn btn-outline btn-sm" data-mark-read="${n._id}">Mark read</button>
+                    ${isUnread ? `<button type="button" class="btn btn-outline btn-sm" data-mark-read="${n._id}">Mark read</button>` : ''}
                 </div>
-            </li>`
-        ).join('');
+            </li>`;
+        }).join('');
 
+        // adding event listeners for the mongodb _id
         ul.querySelectorAll('[data-mark-read]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.getAttribute('data-mark-read');
-                await fetch(`${NOTIFICATION_API}/${id}/read?email=${encodeURIComponent(currentUser.email)}`, { method: 'PATCH' });
-                loadNotificationsPage();
+                try {
+                    const r = await fetch(
+                        `${NOTIFICATION_API}/${id}/read?email=${encodeURIComponent(currentUser.email)}`,
+                        { method: 'PATCH' }
+                    );
+                    if (r.ok) loadNotificationsPage(); // refresh list after update
+                } catch (err) {
+                    console.error("error marking notification as read:", err);
+                }
             });
         });
     } catch (e) {
-        console.error(e);
+        console.error("failed to load notifications:", e);
+        ul.innerHTML = '<li style="padding: var(--space-3);">Could not load notifications from server.</li>';
     }
 }
+
 
 // join queue by saving to mongodb
 async function joinQueue(event, serviceId) {

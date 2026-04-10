@@ -30,6 +30,7 @@ function initAdminDashboard() {
 
 async function renderDashboard() {
     try {
+        // fetch call to retrieve total services from mongodb
         const response = await fetch(API_BASE);
         const services = await response.json();
         const totalServices = services.length;
@@ -41,22 +42,23 @@ async function renderDashboard() {
         await Promise.all(
             services.map(async (s) => {
                 try {
-                    const r = await fetch(`${QUEUE_API}/admin/${s.id}`, {
+                    // mapping use of mongodb _id for queue retrieval
+                    const r = await fetch(`${QUEUE_API}/admin/${s._id || s.id}`, {
                         headers: adminHeaders()
                     });
                     if (!r.ok) {
-                        queueLengths[s.id] = 0;
+                        queueLengths[s._id || s.id] = 0;
                         return;
                     }
                     const data = await r.json();
                     const n = typeof data.count === 'number'
                         ? data.count
                         : (data.queue && data.queue.length) || 0;
-                    queueLengths[s.id] = n;
+                    queueLengths[s._id || s.id] = n;
                     totalWaiting += n;
                     if (n > 0) activeQueueCount += 1;
                 } catch {
-                    queueLengths[s.id] = 0;
+                    queueLengths[s._id || s.id] = 0;
                 }
             })
         );
@@ -76,7 +78,7 @@ function renderDashboardTable(services, queueLengths) {
     if (!tableContainer) return;
 
     const rows = services.map(service => {
-        const queueLength = queueLengths[service.id] || 0;
+        const queueLength = queueLengths[service._id || service.id] || 0;
         return `
             <tr>
                 <td><strong>${escapeHtml(service.name)}</strong></td>
@@ -123,10 +125,16 @@ function initServiceManagement() {
  */
 async function renderServicesList() {
     const container = document.getElementById('servicesListContainer');
+    const loader = document.getElementById('loadingIndicator');
+
+    // show loading state during retrieval
+    if (loader) loader.style.display = 'block';
 
     try {
         const response = await fetch(API_BASE);
         const services = await response.json();
+
+        if (loader) loader.style.display = 'none';
 
         if (services.length === 0) {
             container.innerHTML = '<div class="empty-state"><p>No services yet. Click "Add Service" to create one.</p></div>';
@@ -141,8 +149,8 @@ async function renderServicesList() {
                 <td><span class="badge">${service.priorityLevel}</span></td>
                 <td>
                     <div style="display: flex; gap: var(--space-2);">
-                        <button class="btn btn-outline btn-sm" onclick="openServiceModal(${service.id})">Edit</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteService(${service.id})">Delete</button>
+                        <button class="btn btn-outline btn-sm" onclick="openServiceModal('${service._id || service.id}')">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteService('${service._id || service.id}')">Delete</button>
                     </div>
                 </td>
             </tr>
@@ -163,6 +171,7 @@ async function renderServicesList() {
             </table>
         `;
     } catch (error) {
+        if (loader) loader.style.display = 'none';
         showNotification('Failed to load services from server.', 'error');
     }
 }
@@ -240,7 +249,8 @@ async function openServiceModal(id) {
         title.textContent = 'Edit Service';
         const response = await fetch(`${API_BASE}`);
         const services = await response.json();
-        const service = services.find(s => s.id === id);
+        // handling the retrieval of single service using mongodb _id
+        const service = services.find(s => (s._id || s.id) === id);
 
         if (service) {
             document.getElementById('serviceName').value = service.name;
@@ -271,7 +281,7 @@ function initQueueManagement() {
     populateServiceSelect(select);
 
     select.addEventListener('change', () => {
-        selectedServiceId = select.value ? parseInt(select.value, 10) : null;
+        selectedServiceId = select.value || null;
 
         if (selectedServiceId) {
             document.getElementById('queueDisplay').style.display = '';
@@ -289,8 +299,9 @@ async function populateServiceSelect(select) {
         const response = await fetch(API_BASE);
         const services = await response.json();
 
+        // using _id for select values to match mongodb documents
         const options = services
-            .map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`)
+            .map(s => `<option value="${s._id || s.id}">${escapeHtml(s.name)}</option>`)
             .join('');
 
         select.innerHTML = '<option value="">Choose a service...</option>' + options;

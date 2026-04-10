@@ -1,70 +1,82 @@
-const { services } = require('../data/memoryData');
+// importing the mongoose model instead of memoryData - assignment4
+const Service = require('../models/Service');
 
-// Unique ID counter for services
-let serviceIdCounter = 1;
-
-exports.createService = (req, res) => {
+// fetch: create a new service in mongodb
+exports.createService = async (req, res) => {
     const { name, description, expectedDuration, priorityLevel } = req.body;
 
-    // ensure priorityLevel is present and is a valid number
+    // validation
     if (!priorityLevel || isNaN(parseInt(priorityLevel))) {
-        return res.status(400).json({ 
-            message: 'Service Priority is required and must be a number.' 
-        });
+        return res.status(400).json({ message: 'service priority is required and must be a number.' });
     }
-
-    // validaiton for other fields
     if (!name || !expectedDuration) {
-        return res.status(400).json({ message: 'Name and Duration are required.' });
+        return res.status(400).json({ message: 'name and duration are required.' });
     }
 
-    const newService = {
-        id: services.length + 1,
-        name,
-        description,
-        expectedDuration: parseInt(expectedDuration),
-        priorityLevel: parseInt(priorityLevel), // Store as integer
-        status: 'active'
-    };
+    try {
+        const newService = new Service({
+            name,
+            description,
+            expectedDuration: parseInt(expectedDuration),
+            priorityLevel: parseInt(priorityLevel),
+            status: 'active'
+        });
 
-    services.push(newService);
-    
-    console.log(`[ADMIN] Created new service: ${name} (Priority: ${priorityLevel})`);
-    res.status(201).json(newService);
+        // this saves the data to your mongodb atlas cluster
+        await newService.save();
+        
+        console.log(`[admin] database: created new service: ${name}`);
+        res.status(201).json(newService);
+    } catch (error) {
+        res.status(500).json({ message: 'error saving to database', error: error.message });
+    }
 };
-exports.getServices = (req, res) => {
-    res.json(services);
+
+// fetch: list all services from mongodb
+exports.getServices = async (req, res) => {
+    try {
+        const services = await Service.find();
+        res.json(services);
+    } catch (error) {
+        res.status(500).json({ message: 'error retrieving services', error: error.message });
+    }
 };
 
-
-//service update logic
-exports.updateService = (req, res) => {
-    const serviceId = parseInt(req.params.id);
+// fetch: update service in mongodb using _id
+exports.updateService = async (req, res) => {
+    const { id } = req.params;
     const { name, description, expectedDuration, priorityLevel } = req.body;
 
-    const serviceIndex = services.findIndex(s => s.id === serviceId);
+    try {
+        const updatedService = await Service.findByIdAndUpdate(
+            id,
+            { name, description, expectedDuration, priorityLevel },
+            { new: true } // returns the modified document
+        );
 
-    if (serviceIndex === -1) {
-        return res.status(404).json({ message: 'Service not found' });
+        if (!updatedService) {
+            return res.status(404).json({ message: 'service not found' });
+        }
+
+        res.json({ message: 'service updated in database', service: updatedService });
+    } catch (error) {
+        res.status(500).json({ message: 'update failed', error: error.message });
     }
-
-    //update fields if provided in req
-    if (name) services[serviceIndex].name = name;
-    if (description) services[serviceIndex].description = description;
-    if (expectedDuration) services[serviceIndex].expectedDuration = expectedDuration;
-    if (priorityLevel !== undefined) services[serviceIndex].priorityLevel = priorityLevel;
-
-    res.json({ message: 'Service updated successfully', service: services[serviceIndex] });
 };
 
-exports.deleteService = (req, res) => {
-    const serviceId = parseInt(req.params.id);
-    const serviceIndex = services.findIndex(s => s.id === serviceId);
+// fetch: delete service from mongodb
+exports.deleteService = async (req, res) => {
+    const { id } = req.params;
 
-    if (serviceIndex === -1) {
-        return res.status(404).json({ message: 'Service not found' });
+    try {
+        const deletedService = await Service.findByIdAndDelete(id);
+
+        if (!deletedService) {
+            return res.status(404).json({ message: 'service not found' });
+        }
+
+        res.json({ message: 'service deleted from database' });
+    } catch (error) {
+        res.status(500).json({ message: 'delete failed', error: error.message });
     }
-
-    services.splice(serviceIndex, 1);
-    res.json({ message: 'Service deleted successfully' });
 };

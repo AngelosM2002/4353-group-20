@@ -12,10 +12,8 @@
 <body>
     <div class="app-layout">
 
-        <!-- Sidebar loads here -->
         <div id="nav-container"></div>
 
-        <!-- Main Content -->
         <main class="app-main">
             <div class="page-header" style="margin-bottom: var(--space-6);">
                 <h1>Service Management</h1>
@@ -24,11 +22,11 @@
 
             <section class="card" id="serviceManagement">
                 <div id="servicesListContainer"></div>
+                <div id="loadingIndicator" style="display: none;">loading services...</div>
             </section>
         </main>
     </div>
 
-    <!-- Create / Edit Service Modal -->
     <div class="modal-overlay" id="serviceModal">
         <div class="modal">
             <div class="modal-header">

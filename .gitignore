@@ -1,0 +1,15 @@
+# node.js dependencies
+backend/node_modules/
+node_modules/
+
+# environment variables
+backend/.env
+.env
+
+# os generated files
+.DS_Store
+Thumbs.db
+
+# test reports
+coverage/
+backend/coverage/

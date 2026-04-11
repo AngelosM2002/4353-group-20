@@ -1,0 +1,198 @@
+/* ========================================
+   QueueSmart — Navigation Styles
+   ======================================== */
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    height: 100vh;
+    background: #fff;
+    border-right: 1px solid var(--gray-200);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    overflow-y: auto;
+}
+
+/* ---------- Sidebar Header ---------- */
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-5) var(--space-4);
+    border-bottom: 1px solid var(--gray-200);
+}
+
+/* ---------- QueueSmart Logo (Sidebar) ---------- */
+.queuesmart-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.icon-q {
+    position: relative;
+    width: 32px;  /* slightly smaller for sidebar */
+    height: 32px;
+    border: 4px solid #0f172a;
+    border-radius: 50%;
+    box-sizing: border-box;
+}
+
+/* Queue dots inside the circle — 3 people waiting */
+.icon-q::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3.5px;
+    height: 3.5px;
+    background: #0f172a;
+    border-radius: 50%;
+    box-shadow:
+        -6px 0 0 0 #0f172a,
+         6px 0 0 0 #0f172a;
+}
+
+/* Arrow tail — flow out of the queue */
+.icon-q::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    right: -3px;
+    width: 12px;
+    height: 4px;
+    background: #0f172a;
+    transform: rotate(45deg);
+    border-radius: 2px;
+}
+
+.logo-text {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 700;
+    font-size: 1.25rem; /* slightly smaller for sidebar */
+    color: #0f172a;
+    letter-spacing: -0.5px;
+}
+
+/* ---------- Sidebar Nav ---------- */
+.sidebar-nav {
+    flex: 1;
+    padding: var(--space-4) var(--space-3);
+}
+
+.nav-section {
+    margin-bottom: var(--space-4);
+}
+
+.nav-section-title {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-400);
+    padding: 0 var(--space-3);
+    margin-bottom: var(--space-2);
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    color: var(--gray-600);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    text-decoration: none;
+    margin-bottom: 2px;
+    transition: background var(--transition-fast);
+}
+
+.nav-link:hover {
+    color: var(--gray-900);
+    background: var(--gray-100);
+    text-decoration: none;
+}
+
+.nav-link.active {
+    color: var(--gray-900);
+    background: var(--gray-100);
+    font-weight: 500;
+}
+
+.nav-link svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* ---------- Sidebar Footer ---------- */
+.sidebar-footer {
+    padding: var(--space-3);
+    border-top: 1px solid var(--gray-200);
+}
+
+.sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--gray-900);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-name {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--gray-900);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-role {
+    font-size: var(--font-size-xs);
+    color: var(--gray-400);
+    text-transform: capitalize;
+}
+
+.logout-btn {
+    background: none;
+    border: none;
+    color: var(--gray-400);
+    cursor: pointer;
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+}
+
+.logout-btn:hover {
+    color: var(--error);
+}
+
+.logout-btn svg {
+    width: 16px;
+    height: 16px;
+}

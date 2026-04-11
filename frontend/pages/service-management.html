@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Management — QueueSmart</title>
+
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/nav.css">
+</head>
+
+<body>
+
+    <!-- Notifications (required) -->
+    <div id="notifications"></div>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <a href="./dashboard.html">Admin Dashboard</a>
+        <a href="./service-management.html" class="active">Service Management</a>
+        <a href="./queue-management.html">Queue Management</a>
+        <a href="../login.html">Logout</a>
+    </nav>
+
+    <main class="container">
+        <h1>Service Management</h1>
+
+        <form id="serviceForm" class="card" novalidate>
+
+            <!-- Service Name -->
+            <div class="form-field">
+                <label for="serviceName" class="form-label">
+                    Service Name (max 100 characters)
+                </label>
+                <input
+                    id="serviceName"
+                    class="form-input"
+                    type="text"
+                    maxlength="100"
+                    required
+                >
+                <div class="form-error"></div>
+            </div>
+
+            <!-- Description -->
+            <div class="form-field">
+                <label for="serviceDesc" class="form-label">
+                    Description
+                </label>
+                <input
+                    id="serviceDesc"
+                    class="form-input"
+                    type="text"
+                    required
+                >
+                <div class="form-error"></div>
+            </div>
+
+            <!-- Expected Duration -->
+            <div class="form-field">
+                <label for="serviceDuration" class="form-label">
+                    Expected Duration (minutes)
+                </label>
+                <input
+                    id="serviceDuration"
+                    class="form-input"
+                    type="number"
+                    min="1"
+                    required
+                >
+                <div class="form-error"></div>
+            </div>
+
+            <!-- Priority -->
+            <div class="form-field">
+                <label for="servicePriority" class="form-label">
+                    Priority
+                </label>
+                <select
+                    id="servicePriority"
+                    class="form-select"
+                    required
+                >
+                    <option value="">Select priority</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+                <div class="form-error"></div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                Create Service
+            </button>
+
+        </form>
+    </main>
+
+    <!-- Validation + Notifications (THIS is what you asked to add) -->
+    <script type="module">
+        import { setupServiceFormValidation } from "../../js/serviceValidate.js";
+        setupServiceFormValidation();
+    </script>
+
+</body>
+</html>

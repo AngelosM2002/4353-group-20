@@ -1,5 +1,6 @@
 const QueueEntry = require('../models/QueueEntry');
 const Service = require('../models/Service');
+const Queue = require('../models/Queue');
 const History = require('../models/Notification'); 
 const UserCredential = require('../models/UserCredentials'); 
 
@@ -166,9 +167,17 @@ exports.joinQueue = async (req, res) => {
             }
         }
 
+        // find or create an open Queue for this service (Assignment 4 requirement)
+        let queue = await Queue.findOne({ serviceId: serviceId, status: 'open' });
+        if (!queue) {
+            queue = await Queue.create({ serviceId: serviceId, status: 'open' });
+            console.log(`[QUEUE] Auto-created open Queue for service ${service.name}`);
+        }
+
         // creating the database entry
         const newEntry = await QueueEntry.create({
             serviceId,
+            queueId: queue._id,
             userId: userId || null, 
             userName,
             userEmail,

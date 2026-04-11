@@ -6,9 +6,13 @@ const queueEntrySchema = new mongoose.Schema({
         ref: 'Service', 
         required: true 
     },
+    queueId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Queue'
+    },
     userId: { 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: 'UserCredential' 
+        ref: 'UserCredentials' 
     },
     userName: { 
         type: String, 

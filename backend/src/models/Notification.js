@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const notificationSchema = new mongoose.Schema({
     userId: { 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: 'UserCredential', 
+        ref: 'UserCredentials', 
         required: true 
     },
     type: { 

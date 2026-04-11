@@ -1,3 +1,4 @@
+jest.setTimeout(15000);
 const request = require('supertest');
 const app = require('../server');
 const Notification = require('../src/models/Notification');

@@ -38,6 +38,10 @@ const queueEntrySchema = new mongoose.Schema({
     joinedAt: { 
         type: Date, 
         default: Date.now 
+    },
+    // track when the user was served for duration calculations
+    servedAt: {
+        type: Date
     }
 }, { timestamps: true });
 

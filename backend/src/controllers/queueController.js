@@ -20,9 +20,11 @@ function normalizeServiceId(raw) {
     return String(raw);
 }
 
-/** Rule-based wait (assignment): position x expected duration (minutes per slot ahead). */
-function estimateWaitMinutes(position, expectedDuration) {
-    const dur = Number(expectedDuration);
+/** * smart feature: uses actual historical duration if available, 
+ * otherwise falls back to the expected duration. 
+ */
+function estimateWaitMinutes(position, expectedDuration, actualAverage) {
+    const dur = actualAverage !== null && actualAverage !== undefined ? Number(actualAverage) : Number(expectedDuration);
     const pos = Number(position);
     if (!Number.isFinite(dur) || !Number.isFinite(pos) || dur < 0 || pos < 1) {
         return 0;
@@ -49,7 +51,6 @@ exports.getAdminQueue = async (req, res) => {
             return res.status(404).json({ message: 'Service not found' });
         }
 
-        // fetch from mongodb with specific sorting: priority DESC, joinedAt ASC
         const queueEntries = await QueueEntry.find({ 
             serviceId: serviceIdKey, 
             status: 'waiting' 
@@ -63,7 +64,7 @@ exports.getAdminQueue = async (req, res) => {
                 userEmail: entry.userEmail,
                 joinedAt: entry.joinedAt,
                 priority: entry.priority ?? 0,
-                estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration)
+                estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration, service.actualAverageDuration)
             };
         });
 
@@ -90,7 +91,6 @@ exports.serveNext = async (req, res) => {
             return res.status(404).json({ message: 'Service not found' });
         }
 
-        // find the first person in line based on sorting rules
         const servedEntry = await QueueEntry.findOne({ 
             serviceId: serviceIdKey, 
             status: 'waiting' 
@@ -100,9 +100,24 @@ exports.serveNext = async (req, res) => {
             return res.status(400).json({ message: 'Queue is empty' });
         }
 
-        // update status to served in database
+        // track serve time for smart logic
+        const now = new Date();
+        const waitDurationMs = now - servedEntry.joinedAt;
+        const waitMinutes = waitDurationMs / (1000 * 60);
+
         servedEntry.status = 'served';
+        servedEntry.servedAt = now;
         await servedEntry.save();
+
+        // update service average duration (smart feature calculation)
+        const oldTotal = service.totalServed || 0;
+        const oldAvg = service.actualAverageDuration !== null ? service.actualAverageDuration : service.expectedDuration;
+        const newTotal = oldTotal + 1;
+        const newAvg = ((oldAvg * oldTotal) + waitMinutes) / newTotal;
+
+        service.actualAverageDuration = newAvg;
+        service.totalServed = newTotal;
+        await service.save();
 
         if (servedEntry.userId) {
             await History.create({
@@ -113,8 +128,7 @@ exports.serveNext = async (req, res) => {
             });
         }
 
-        console.log(`[HISTORY] User ${servedEntry.userEmail} was officially Served.`);
-        console.log(`[ADMIN] Served next: ${servedEntry.userEmail} for service ${service.name}`);
+        console.log(`[SMART] Updated average duration for ${service.name}: ${newAvg.toFixed(2)} mins`);
 
         syncNearFrontForService(serviceIdKey);
 
@@ -128,7 +142,8 @@ exports.serveNext = async (req, res) => {
                 joinedAt: servedEntry.joinedAt,
                 priority: servedEntry.priority ?? 0
             },
-            remaining: remainingCount
+            remaining: remainingCount,
+            newAverageDuration: newAvg
         });
     } catch (error) {
         res.status(500).json({ message: 'Serve next failed', error: error.message });
@@ -167,14 +182,12 @@ exports.joinQueue = async (req, res) => {
             }
         }
 
-        // find or create an open Queue for this service (Assignment 4 requirement)
         let queue = await Queue.findOne({ serviceId: serviceId, status: 'open' });
         if (!queue) {
             queue = await Queue.create({ serviceId: serviceId, status: 'open' });
             console.log(`[QUEUE] Auto-created open Queue for service ${service.name}`);
         }
 
-        // creating the database entry
         const newEntry = await QueueEntry.create({
             serviceId,
             queueId: queue._id,
@@ -206,7 +219,7 @@ exports.joinQueue = async (req, res) => {
             message: 'Joined queue successfully',
             position,
             priority,
-            estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration)
+            estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration, service.actualAverageDuration)
         });
     } catch (error) {
         res.status(500).json({ message: 'Error joining queue', error: error.message });
@@ -222,7 +235,6 @@ exports.leaveQueue = async (req, res) => {
     }
 
     try {
-        // 1. Find the entry
         const entry = await QueueEntry.findOne({ 
             serviceId: serviceId, 
             userEmail: userEmail, 
@@ -235,35 +247,25 @@ exports.leaveQueue = async (req, res) => {
 
         const service = await Service.findById(serviceId);
         
-        // 2. Mark entry as cancelled in database
         entry.status = 'cancelled';
         await entry.save();
 
-        // 3. FORCE lookup the user ID to ensure we have a valid link for history
         const user = await UserCredential.findOne({ email: userEmail.toLowerCase() });
 
         if (user) {
-            // 4. Create history record with guaranteed ID
             await History.create({
                 userId: user._id,
                 message: `You left "${service ? service.name : 'the queue'}"`,
                 status: 'sent',
                 type: 'cancelled'
             });
-            console.log(`[REAL-FIX] History record created for ${userEmail}`);
-        } else {
-            console.log(`[ERROR] Could not find user in database for email: ${userEmail}`);
         }
 
-        console.log(`[HISTORY] Recorded cancellation for ${userEmail}`);
-        console.log(`[QUEUE] User ${userEmail} successfully removed from database`);
-        
         clearNearFrontForUserOnService(userEmail, serviceId);
         syncNearFrontForService(serviceId);
 
         return res.json({ message: 'Left queue successfully' });
     } catch (error) {
-        console.error("Leave Queue Error:", error); 
         res.status(500).json({ message: 'Error leaving queue', error: error.message });
     }
 };
@@ -277,18 +279,14 @@ exports.getUserHistory = async (req, res) => {
     }
 
     try {
-        // Ensure UserCredential schema is loaded for population
         const userHistory = await History.find()
             .populate('userId')
-            .sort({ timestamp: -1 }); // Sorting by newest first
+            .sort({ timestamp: -1 });
             
-        // Filtering by email with null-safe checks and fallback search in message for orphaned records
         const filteredHistory = userHistory.filter(h => {
-            // Case 1: Population worked correctly (New records)
             if (h.userId && h.userId.email && h.userId.email.toLowerCase() === email.toLowerCase()) {
                 return true;
             }
-            // Case 2: Fallback for records with broken population links (looking for email in message)
             if (h.message && h.message.toLowerCase().includes(email.toLowerCase())) {
                 return true;
             }
@@ -297,8 +295,6 @@ exports.getUserHistory = async (req, res) => {
         
         res.json(filteredHistory);
     } catch (error) {
-        console.error("History Fetch Error:", error);
-        // Return an empty array on error to prevent frontend crashes
         res.status(500).json([]);
     }
 };
@@ -320,7 +316,6 @@ exports.getUserStatus = async (req, res) => {
 
         const service = await Service.findById(entry.serviceId);
         
-        // calculate position based on priority and time
         const totalAhead = await QueueEntry.countDocuments({
             serviceId: entry.serviceId,
             status: 'waiting',
@@ -336,7 +331,7 @@ exports.getUserStatus = async (req, res) => {
             inQueue: true,
             position,
             service,
-            estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration)
+            estimatedWaitMinutes: estimateWaitMinutes(position, service.expectedDuration, service.actualAverageDuration)
         });
     } catch (error) {
         res.status(500).json({ message: 'Error checking status', error: error.message });

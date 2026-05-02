@@ -45,3 +45,12 @@ A web application that helps organizations manage queues and appointments effici
 - **Backend:** Node.js, Express.js
 - **Database:** MongoDB (Mongoose ODM)
 - **Testing:** Jest, Supertest
+
+## Testing
+The backend is fully tested using Jest and Supertest.
+
+To run the test suite and view the coverage report:
+```bash
+cd backend
+npx jest --coverage
+```

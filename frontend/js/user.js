@@ -14,6 +14,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // For User Dashboard Page
     if (document.getElementById('activeServicesList')) {
+        const greetingEl = document.getElementById('dashboardGreeting');
+        if (greetingEl) {
+            const user = JSON.parse(localStorage.getItem('qs_currentUser') || 'null');
+            if (user && user.name) {
+                const firstName = user.name.split(' ')[0];
+                greetingEl.textContent = `Welcome back, ${firstName}`;
+            }
+        }
         renderUserDashboard();
     }
 
@@ -174,13 +182,14 @@ async function loadAvailableServices() {
                         </div>
                     </div>
                     <div class="card-footer">
-                        <button 
-                            class="btn ${isJoined ? 'btn-success' : 'btn-primary'} w-100" 
-                            onclick="joinQueue(event, '${serviceId}')"
-                            ${isJoined ? 'disabled' : ''}
-                        >
-                            ${isJoined ? '✓ Queue Joined' : 'Join Queue'}
-                        </button>
+                        ${isJoined ? `
+                            <div style="display: flex; gap: var(--space-3);">
+                                <button class="btn btn-success w-100" disabled>✓ Queue Joined</button>
+                                <button class="btn btn-danger" onclick="leaveQueue('${serviceId}')">Leave</button>
+                            </div>
+                        ` : `
+                            <button class="btn btn-primary w-100" onclick="joinQueue(event, '${serviceId}')">Join Queue</button>
+                        `}
                     </div>
                 </div>
             `;
@@ -280,6 +289,7 @@ async function renderNotificationsSummary() {
 
 async function loadNotificationsPage() {
     const ul = document.getElementById('notificationsPageList');
+    const markAllBtn = document.getElementById('markAllReadBtn');
     if (!ul) return;
 
     const currentUser = JSON.parse(localStorage.getItem('qs_currentUser') || 'null');
@@ -292,8 +302,12 @@ async function loadNotificationsPage() {
 
         if (items.length === 0) {
             ul.innerHTML = '<li style="padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-md);">No notifications yet.</li>';
+            if (markAllBtn) markAllBtn.style.display = 'none';
             return;
         }
+
+        const unreadCount = items.filter(n => n.status === 'sent').length;
+        if (markAllBtn) markAllBtn.style.display = unreadCount > 0 ? 'inline-block' : 'none';
 
         ul.innerHTML = items.map(n => {
             const isUnread = n.status === 'sent';
@@ -320,6 +334,28 @@ async function loadNotificationsPage() {
     }
 }
 
+window.markAllNotificationsRead = async function() {
+    const currentUser = JSON.parse(localStorage.getItem('qs_currentUser') || 'null');
+    if (!currentUser) return;
+
+    try {
+        const res = await fetch(`${NOTIFICATION_API}/mark-all-read?email=${encodeURIComponent(currentUser.email)}`, { 
+            method: 'PATCH' 
+        });
+        
+        if (res.ok) {
+            showNotification('Marked all as read', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        } else {
+            showNotification('Failed to mark all as read', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        showNotification('Error marking notifications as read', 'error');
+    }
+};
 
 // join queue
 async function joinQueue(event, serviceId) {

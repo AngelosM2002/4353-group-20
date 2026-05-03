@@ -1,4 +1,3 @@
-// importing the mongoose model instead of memoryData - assignment4
 const Service = require('../models/Service');
 
 // fetch: create a new service in mongodb
@@ -24,7 +23,7 @@ exports.createService = async (req, res) => {
 
         // this saves the data to your mongodb atlas cluster
         await newService.save();
-        
+
         console.log(`[admin] database: created new service: ${name}`);
         res.status(201).json(newService);
     } catch (error) {
@@ -46,12 +45,12 @@ exports.getServices = async (req, res) => {
 // fetch: update service in mongodb using _id
 exports.updateService = async (req, res) => {
     const { id } = req.params;
-    const { name, description, expectedDuration, priorityLevel } = req.body;
+    const { name, description, expectedDuration, priorityLevel, status } = req.body;
 
     try {
         const updatedService = await Service.findByIdAndUpdate(
             id,
-            { name, description, expectedDuration, priorityLevel },
+            { name, description, expectedDuration, priorityLevel, status },
             { returnDocument: 'after' } // returns the modified document
         );
 

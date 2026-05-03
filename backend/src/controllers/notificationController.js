@@ -61,3 +61,33 @@ exports.markRead = async (req, res) => {
         res.status(500).json({ message: 'failed to update notification', error: error.message });
     }
 };
+
+// PATCH /api/notifications/mark-all-read?email=user@example.com
+exports.markAllRead = async (req, res) => {
+    const email = req.query.email;
+
+    if (!email || typeof email !== 'string') {
+        return res.status(400).json({ message: 'email query parameter is required' });
+    }
+
+    try {
+        const normalized = email.trim().toLowerCase();
+        
+        // Find the user first to get their database _id
+        const user = await UserCredential.findOne({ email: normalized });
+        
+        if (!user) {
+            return res.status(404).json({ message: 'user not found' });
+        }
+
+        // Update all 'sent' notifications for this user to 'viewed'
+        const result = await Notification.updateMany(
+            { userId: user._id, status: 'sent' },
+            { $set: { status: 'viewed' } }
+        );
+
+        res.json({ message: 'marked all as read', updatedCount: result.modifiedCount });
+    } catch (error) {
+        res.status(500).json({ message: 'failed to update notifications', error: error.message });
+    }
+};

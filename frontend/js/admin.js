@@ -25,6 +25,14 @@ document.addEventListener('DOMContentLoaded', () => {
    ================================================ */
 
 function initAdminDashboard() {
+    const greetingEl = document.getElementById('dashboardGreeting');
+    if (greetingEl) {
+        const user = JSON.parse(localStorage.getItem('qs_currentUser') || 'null');
+        if (user && user.name) {
+            const firstName = user.name.split(' ')[0];
+            greetingEl.textContent = `Welcome Back, ${firstName}`;
+        }
+    }
     renderDashboard();
 }
 
@@ -78,13 +86,21 @@ function renderDashboardTable(services, queueLengths) {
     if (!tableContainer) return;
 
     const rows = services.map(service => {
-        const queueLength = queueLengths[service._id || service.id] || 0;
+        const sid = service._id || service.id;
+        const queueLength = queueLengths[sid] || 0;
+        const isActive = service.status === 'active';
         return `
             <tr>
                 <td><strong>${escapeHtml(service.name)}</strong></td>
                 <td>${service.expectedDuration} mins</td>
                 <td><span class="badge">${service.priorityLevel}</span></td>
                 <td>${queueLength} people waiting</td>
+                <td>
+                    <button class="btn btn-sm ${isActive ? 'btn-danger' : 'btn-primary'}"
+                        onclick="toggleServiceStatus('${sid}', '${isActive ? 'inactive' : 'active'}')">
+                        ${isActive ? 'Close' : 'Open'}
+                    </button>
+                </td>
             </tr>
         `;
     }).join('');
@@ -97,11 +113,33 @@ function renderDashboardTable(services, queueLengths) {
                     <th>Duration</th>
                     <th>Priority</th>
                     <th>Queue Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>${rows}</tbody>
         </table>
     `;
+}
+
+async function toggleServiceStatus(serviceId, newStatus) {
+    try {
+        const res = await fetch(`${API_BASE}/${serviceId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+            body: JSON.stringify({ status: newStatus })
+        });
+
+        if (!res.ok) {
+            showNotification('Failed to update service status.', 'error');
+            return;
+        }
+
+        showNotification(`Service ${newStatus === 'active' ? 'opened' : 'closed'} successfully.`, 'success');
+        renderDashboard();
+    } catch (error) {
+        console.error('Toggle error:', error);
+        showNotification('Could not connect to server.', 'error');
+    }
 }
 
 /* ================================================
@@ -366,7 +404,7 @@ async function renderQueue() {
             return;
         }
 
-        const rows = queue.map((person) => {
+        const rows = queue.map((person, idx) => {
             const waitMinutes = Math.round(
                 (Date.now() - new Date(person.joinedAt).getTime()) / 60000
             );
@@ -377,14 +415,16 @@ async function renderQueue() {
                     : '\u2014';
 
             return `
-            <tr>
+            <tr data-queue-idx="${idx}">
                 <td><span class="queue-position">${person.position}</span></td>
                 <td><strong>${escapeHtml(person.userName)}</strong></td>
                 <td>${escapeHtml(person.userEmail)}</td>
                 <td>${person.priority ?? 0}</td>
                 <td>${estRule}</td>
                 <td>${displayWait}</td>
-                <td>
+                <td style="display: flex; gap: 4px; align-items: center;">
+                    <button type="button" class="btn btn-sm btn-outline" ${idx === 0 ? 'disabled' : ''} onclick="reorderQueue(${idx}, 'up')" title="Move up">▲</button>
+                    <button type="button" class="btn btn-sm btn-outline" ${idx === queue.length - 1 ? 'disabled' : ''} onclick="reorderQueue(${idx}, 'down')" title="Move down">▼</button>
                     <button type="button" class="btn btn-danger btn-sm" data-remove-email="${escapeHtml(person.userEmail)}">Remove</button>
                 </td>
             </tr>
@@ -446,6 +486,32 @@ async function removeQueueUser(userEmail) {
         console.error('Remove error:', error);
         showNotification('Could not connect to the server.', 'error');
     }
+}
+
+function reorderQueue(currentIdx, direction) {
+    const tbody = document.querySelector('#queueTableContainer tbody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const targetIdx = direction === 'up' ? currentIdx - 1 : currentIdx + 1;
+
+    if (targetIdx < 0 || targetIdx >= rows.length) return;
+
+    // Swap the DOM rows
+    if (direction === 'up') {
+        tbody.insertBefore(rows[currentIdx], rows[targetIdx]);
+    } else {
+        tbody.insertBefore(rows[targetIdx], rows[currentIdx]);
+    }
+
+    // Update the position numbers
+    const updatedRows = tbody.querySelectorAll('tr');
+    updatedRows.forEach((row, i) => {
+        const posEl = row.querySelector('.queue-position');
+        if (posEl) posEl.textContent = i + 1;
+    });
+
+    showNotification('Queue order updated.', 'success');
 }
 
 async function serveNextUser() {

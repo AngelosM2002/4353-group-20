@@ -7,7 +7,8 @@ const UserCredential = require('../models/UserCredentials');
 const {
     recordQueueJoined,
     syncNearFrontForService,
-    clearNearFrontForUserOnService
+    clearNearFrontForUserOnService,
+    pushNotification
 } = require('../services/notificationTriggers');
 
 /**
@@ -119,14 +120,11 @@ exports.serveNext = async (req, res) => {
         service.totalServed = newTotal;
         await service.save();
 
-        if (servedEntry.userId) {
-            await History.create({
-                userId: servedEntry.userId,
-                message: `You were served for "${service.name}"`,
-                status: 'sent',
-                type: 'served'
-            });
-        }
+        await pushNotification({
+            userEmail: servedEntry.userEmail,
+            message: `You were served for "${service.name}"`,
+            type: 'served'
+        });
 
         console.log(`[SMART] Updated average duration for ${service.name}: ${newAvg.toFixed(2)} mins`);
 
